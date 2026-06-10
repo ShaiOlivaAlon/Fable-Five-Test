@@ -1,0 +1,454 @@
+'use strict';
+
+const Game = {
+  canvas: null, ctx: null, dpr: 1,
+  W: 0, H: 0, scale: 1, LW: 420, LH: 800,
+  state: 'title', time: 0,
+  player: null, boss: null,
+  enemies: [], pbullets: [], ebullets: [], powerups: [],
+  score: 0, dispScore: -1, combo: 0, comboT: 0, maxCombo: 0,
+  shakeAmp: 0, hitstop: 0, beamY: -10,
+  lastHp: -1, lastWeapon: '', lastBoost: '§', lastCombo: -1,
+  els: {},
+
+  init(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    const ids = [
+      'hud', 'score', 'combo', 'hearts', 'weapon', 'boosts',
+      'bossbar', 'bossfill', 'banner', 'banner-main', 'banner-sub', 'flash',
+      'screen-title', 'screen-over', 'screen-clear',
+      'final-score', 'clear-score', 'clear-chain', 'best',
+    ];
+    for (const id of ids) this.els[id] = document.getElementById(id);
+    this.resize();
+    this.player = new Player(this);
+    let best = 0;
+    try { best = +(localStorage.getItem('nv_best') || 0); } catch (e) { /* private mode */ }
+    if (best) this.els.best.textContent = 'BEST ' + best.toLocaleString();
+  },
+
+  resize() {
+    this.dpr = Math.min(2.5, window.devicePixelRatio || 1);
+    this.W = window.innerWidth;
+    this.H = window.innerHeight;
+    this.canvas.width = Math.round(this.W * this.dpr);
+    this.canvas.height = Math.round(this.H * this.dpr);
+    this.canvas.style.width = this.W + 'px';
+    this.canvas.style.height = this.H + 'px';
+    this.scale = Math.min(this.W / 420, this.H / 800);
+    this.LW = this.W / this.scale;
+    this.LH = this.H / this.scale;
+    BG.init(this.LW, this.LH, this.scale * this.dpr);
+    if (this.player && this.state !== 'playing') {
+      this.player.x = this.LW / 2;
+      this.player.y = this.LH - 120;
+    }
+  },
+
+  start() {
+    this.state = 'playing';
+    this.score = 0;
+    this.dispScore = -1;
+    this.combo = 0;
+    this.maxCombo = 0;
+    this.comboT = 0;
+    this.enemies.length = 0;
+    this.pbullets.length = 0;
+    this.ebullets.length = 0;
+    this.powerups.length = 0;
+    this.boss = null;
+    this.shakeAmp = 0;
+    this.hitstop = 0;
+    Particles.list.length = 0;
+    Popups.list.length = 0;
+    this.player.reset();
+    Level.reset(this);
+    this.lastHp = -1;
+    this.lastWeapon = '';
+    this.lastBoost = '§';
+    this.lastCombo = -1;
+    this.els['screen-title'].classList.add('hidden');
+    this.els['screen-over'].classList.add('hidden');
+    this.els['screen-clear'].classList.add('hidden');
+    this.els.bossbar.classList.add('hidden');
+    this.els.hud.classList.remove('hidden');
+  },
+
+  bullet(x, y, vx, vy, dmg, type) {
+    return { x, y, vx, vy, dmg, type, r: type === 'missile' ? 6 : 4, dead: false, smoke: 0 };
+  },
+
+  shake(a) { this.shakeAmp = Math.max(this.shakeAmp, a); },
+
+  flash(color) {
+    const f = this.els.flash;
+    f.style.background = color;
+    f.classList.remove('on');
+    void f.offsetWidth;
+    f.classList.add('on');
+  },
+
+  banner(main, sub = '', warn = false) {
+    const b = this.els.banner;
+    this.els['banner-main'].textContent = main;
+    this.els['banner-sub'].textContent = sub;
+    b.classList.toggle('warn', warn);
+    b.classList.remove('hidden', 'show');
+    void b.offsetWidth;
+    b.classList.add('show');
+  },
+
+  update(dt) {
+    this.time += dt;
+    BG.update(dt);
+    Particles.update(dt);
+    Popups.update(dt);
+    if (this.shakeAmp > 0) this.shakeAmp = Math.max(0, this.shakeAmp - dt * 30);
+    if (this.state !== 'playing') { Input.consume(); return; }
+
+    const p = this.player;
+    if (p.alive) p.update(dt);
+    Level.update(dt, this);
+    if (this.boss) this.boss.update(dt);
+
+    for (let i = this.enemies.length - 1; i >= 0; i--) {
+      const e = this.enemies[i];
+      e.update(dt, this);
+      if (e.dead) this.enemies.splice(i, 1);
+    }
+
+    // player bullets
+    for (let i = this.pbullets.length - 1; i >= 0; i--) {
+      const b = this.pbullets[i];
+      if (b.type === 'missile') this.steerMissile(b, dt);
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      if (b.y < -30 || b.x < -30 || b.x > this.LW + 30 || b.y > this.LH + 30) {
+        this.pbullets.splice(i, 1);
+        continue;
+      }
+      for (const e of this.enemies) {
+        if (e.delay > 0 || e.dead) continue;
+        const rr = e.r + b.r;
+        if (U.dist2(b.x, b.y, e.x, e.y) < rr * rr) {
+          e.damage(b.dmg, this);
+          this.impact(b);
+          b.dead = true;
+          break;
+        }
+      }
+      if (!b.dead && this.boss && this.boss.hitTest(b.x, b.y, b.r)) {
+        this.boss.damage(b.dmg, this);
+        this.impact(b);
+        b.dead = true;
+      }
+      if (b.dead) this.pbullets.splice(i, 1);
+    }
+
+    if (p.alive && p.weapon === 'beam') this.beamUpdate(dt);
+
+    // enemy bullets
+    for (let i = this.ebullets.length - 1; i >= 0; i--) {
+      const b = this.ebullets[i];
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      if (b.y > this.LH + 24 || b.y < -24 || b.x < -24 || b.x > this.LW + 24) {
+        this.ebullets.splice(i, 1);
+        continue;
+      }
+      if (p.alive && U.dist2(b.x, b.y, p.x, p.y) < (12 + b.r) * (12 + b.r)) {
+        this.ebullets.splice(i, 1);
+        p.hit();
+      }
+    }
+
+    // enemy bodies vs player
+    if (p.alive) {
+      for (const e of this.enemies) {
+        if (e.delay > 0 || e.dead) continue;
+        const rr = e.r + 13;
+        if (U.dist2(e.x, e.y, p.x, p.y) < rr * rr) {
+          e.damage(35, this);
+          p.hit();
+        }
+      }
+    }
+
+    // boss beam vs player
+    if (p.alive && this.boss && this.boss.beamState === 2) {
+      if (Math.abs(p.x - this.boss.beamX) < 26 && p.y > this.boss.y) p.hit();
+    }
+
+    // powerups
+    for (let i = this.powerups.length - 1; i >= 0; i--) {
+      const u = this.powerups[i];
+      u.update(dt, this);
+      if (!u.dead && p.alive && U.dist2(u.x, u.y, p.x, p.y) < 30 * 30) {
+        this.collect(u);
+        u.dead = true;
+      }
+      if (u.dead) this.powerups.splice(i, 1);
+    }
+
+    if (this.comboT > 0) {
+      this.comboT -= dt;
+      if (this.comboT <= 0) this.combo = 0;
+    }
+    this.updateHud();
+  },
+
+  steerMissile(b, dt) {
+    let best = null, bd = Infinity;
+    for (const e of this.enemies) {
+      if (e.delay > 0 || e.dead) continue;
+      const d = U.dist2(b.x, b.y, e.x, e.y);
+      if (d < bd) { bd = d; best = e; }
+    }
+    if (this.boss && this.boss.state === 'fight') {
+      const d = U.dist2(b.x, b.y, this.boss.x, this.boss.y);
+      if (d < bd) { bd = d; best = this.boss; }
+    }
+    if (best) {
+      const want = U.angTo(b.x, b.y, best.x, best.y);
+      const cur = Math.atan2(b.vy, b.vx);
+      let da = want - cur;
+      while (da > Math.PI) da -= U.TAU;
+      while (da < -Math.PI) da += U.TAU;
+      const na = cur + U.clamp(da, -7 * dt, 7 * dt);
+      b.vx = Math.cos(na) * 560;
+      b.vy = Math.sin(na) * 560;
+    }
+    b.smoke -= dt;
+    if (b.smoke <= 0) {
+      b.smoke = 0.03;
+      Particles.spawn({
+        x: b.x, y: b.y, vx: U.rand(-10, 10), vy: U.rand(-10, 10),
+        color: '#ffb347', type: 'flame', size: 2.5, life: 0.3, glow: 8, drag: 1,
+      });
+    }
+  },
+
+  beamUpdate(dt) {
+    const p = this.player;
+    p.beamTick -= dt;
+    let hit = null, hy = -1;
+    for (const e of this.enemies) {
+      if (e.delay > 0 || e.dead || e.y > p.y) continue;
+      if (Math.abs(e.x - p.x) < e.r + 5 && e.y > hy) { hy = e.y; hit = e; }
+    }
+    let bossHit = false;
+    if (!hit && this.boss && this.boss.state === 'fight' &&
+        Math.abs(this.boss.x - p.x) < 95 && this.boss.y < p.y) {
+      bossHit = true;
+      hy = this.boss.y + 40;
+    }
+    this.beamY = hit ? hit.y + hit.r : bossHit ? hy : -10;
+    if (p.beamTick <= 0) {
+      p.beamTick = 0.06;
+      if (hit) hit.damage(7, this);
+      else if (bossHit) this.boss.damage(7, this);
+      if (hit || bossHit) {
+        Particles.spawn({
+          x: p.x + U.rand(-4, 4), y: this.beamY,
+          vx: U.rand(-90, 90), vy: U.rand(-60, 30),
+          color: '#b7ff2e', size: 2.5, life: 0.25, glow: 10,
+        });
+      }
+    }
+  },
+
+  impact(b) {
+    const colors = { pulse: '#41f0ff', scatter: '#ff4dd8', missile: '#ffb347' };
+    Particles.burst(b.x, b.y, colors[b.type] || '#fff', 4, 130, { life: 0.2, size: 2 });
+    if (b.type === 'missile') {
+      Particles.explosion(b.x, b.y, '#ffb347', 0.6);
+      Sfx.boom(0.3);
+      this.shake(2);
+    }
+  },
+
+  killEnemy(e) {
+    this.combo++;
+    this.comboT = 2;
+    this.maxCombo = Math.max(this.maxCombo, this.combo);
+    const gain = Math.round((e.spec.score + Math.min(this.combo, 10) * 10) * this.player.mult);
+    this.score += gain;
+    Popups.spawn(e.x, e.y, '+' + gain, this.player.mult > 1 ? '#ff4dd8' : '#bfefff', 13);
+    if (this.combo >= 3) Popups.spawn(e.x, e.y - 18, '×' + this.combo + ' CHAIN', '#ffd84d', 11);
+    Particles.explosion(e.x, e.y, e.spec.color, e.type === 'sentry' ? 1.25 : e.type === 'mite' ? 0.6 : 1);
+    Sfx.boom(e.type === 'sentry' ? 0.9 : 0.55);
+    this.shake(e.type === 'sentry' ? 5 : 3);
+    this.hitstop = Math.max(this.hitstop, 0.025);
+    U.vibrate(12);
+    if (e.type === 'splitter') {
+      for (const s of [-1, 1]) {
+        const m = new Enemy('mite', { from: { x: e.x + s * 14, y: e.y }, slot: { x: e.x + s * 14, y: e.y } });
+        m.phase = 'live';
+        this.enemies.push(m);
+      }
+    } else if (Math.random() < 0.13) {
+      this.powerups.push(new PowerUp(e.x, e.y, U.pick(['shield', 'over', 'mult', 'repair'])));
+    }
+  },
+
+  collect(u) {
+    const p = this.player, k = u.kind;
+    Sfx.pickup();
+    U.vibrate(15);
+    Particles.burst(u.x, u.y, BOOSTS[k].color, 10, 160, { life: 0.35 });
+    let label = '';
+    if (BOOSTS[k].weapon) {
+      p.weapon = k;
+      p.weaponT = 16;
+      label = WEAPONS[k].name;
+      Sfx.weaponUp();
+    } else if (k === 'shield') { p.shield = 1; label = 'SHIELD'; }
+    else if (k === 'over') { p.over = 8; label = 'OVERDRIVE'; }
+    else if (k === 'mult') { p.mult = 2; p.multT = 12; label = 'SCORE ×2'; }
+    else if (k === 'repair') { p.hp = Math.min(p.maxHp, p.hp + 1); label = 'NANO-REPAIR'; }
+    Popups.spawn(u.x, u.y, label, BOOSTS[k].color, 12);
+  },
+
+  spawnBoss() {
+    this.boss = new Boss(this);
+    this.els.bossbar.classList.remove('hidden');
+    this.shake(6);
+  },
+
+  bossDown() {
+    const b = this.boss;
+    this.score += 5000;
+    Popups.spawn(b.x, b.y, '+5000', '#ffd84d', 18);
+    for (const e of this.enemies) Particles.explosion(e.x, e.y, e.spec.color, 0.7);
+    this.enemies.length = 0;
+    this.ebullets.length = 0;
+    this.boss = null;
+    this.els.bossbar.classList.add('hidden');
+    Level.done = true;
+    this.flash('rgba(255,255,255,0.5)');
+    setTimeout(() => this.levelClear(), 1400);
+  },
+
+  playerDestroyed() {
+    Particles.explosion(this.player.x, this.player.y, '#41f0ff', 2.2);
+    Sfx.boom(1.6);
+    this.shake(22);
+    this.hitstop = 0.25;
+    U.vibrate([90, 60, 140]);
+    this.flash('rgba(255,60,80,0.4)');
+    setTimeout(() => this.gameOver(), 1300);
+  },
+
+  gameOver() {
+    if (this.state !== 'playing') return;
+    this.state = 'over';
+    Sfx.music.stop();
+    this.saveBest();
+    this.els['final-score'].textContent = this.score.toLocaleString();
+    this.els['screen-over'].classList.remove('hidden');
+    this.els.hud.classList.add('hidden');
+    this.els.bossbar.classList.add('hidden');
+  },
+
+  levelClear() {
+    if (this.state !== 'playing') return;
+    this.state = 'clear';
+    Sfx.music.stop();
+    Sfx.jingle();
+    this.saveBest();
+    this.els['clear-score'].textContent = this.score.toLocaleString();
+    this.els['clear-chain'].textContent = '×' + this.maxCombo;
+    this.els['screen-clear'].classList.remove('hidden');
+    this.els.hud.classList.add('hidden');
+  },
+
+  saveBest() {
+    try {
+      const best = +(localStorage.getItem('nv_best') || 0);
+      if (this.score > best) localStorage.setItem('nv_best', this.score);
+    } catch (e) { /* private mode */ }
+  },
+
+  updateHud() {
+    const p = this.player, els = this.els;
+    const ds = Math.ceil(U.lerp(this.dispScore < 0 ? 0 : this.dispScore, this.score, 0.18));
+    if (ds !== this.dispScore) {
+      this.dispScore = ds;
+      els.score.textContent = ds.toLocaleString();
+    }
+    if (this.combo !== this.lastCombo) {
+      this.lastCombo = this.combo;
+      els.combo.textContent = this.combo >= 2 ? '×' + this.combo : '';
+      if (this.combo >= 2) {
+        els.combo.classList.remove('pop');
+        void els.combo.offsetWidth;
+        els.combo.classList.add('pop');
+      }
+    }
+    if (p.hp !== this.lastHp) {
+      this.lastHp = p.hp;
+      let h = '';
+      for (let i = 0; i < p.maxHp; i++) h += `<span class="hp${i < p.hp ? ' on' : ''}"></span>`;
+      els.hearts.innerHTML = h;
+    }
+    const wn = WEAPONS[p.weapon].name + (p.weapon !== 'pulse' ? ' ' + Math.ceil(p.weaponT) : '');
+    if (wn !== this.lastWeapon) {
+      this.lastWeapon = wn;
+      els.weapon.textContent = wn;
+      els.weapon.style.color = WEAPONS[p.weapon].color;
+    }
+    let bs = '';
+    if (p.shield > 0) bs += '<span class="chip" style="color:#41f0ff">SHIELD</span>';
+    if (p.over > 0) bs += `<span class="chip" style="color:#ffd84d">OVERDRIVE ${Math.ceil(p.over)}</span>`;
+    if (p.mult > 1) bs += `<span class="chip" style="color:#ff4dd8">×2 SCORE ${Math.ceil(p.multT)}</span>`;
+    if (bs !== this.lastBoost) {
+      this.lastBoost = bs;
+      els.boosts.innerHTML = bs;
+    }
+    if (this.boss) {
+      els.bossfill.style.width = Math.max(0, (this.boss.hp / this.boss.maxHp) * 100) + '%';
+    }
+  },
+
+  render() {
+    const ctx = this.ctx;
+    ctx.setTransform(this.dpr * this.scale, 0, 0, this.dpr * this.scale, 0, 0);
+    if (this.shakeAmp > 0.2) {
+      ctx.translate(U.rand(-1, 1) * this.shakeAmp, U.rand(-1, 1) * this.shakeAmp);
+    }
+    BG.draw(ctx);
+    for (const u of this.powerups) u.draw(ctx);
+    if (this.boss) this.boss.draw(ctx);
+    for (const e of this.enemies) e.draw(ctx, this);
+    if (this.state === 'playing' && this.player.alive && this.player.weapon === 'beam') {
+      this.drawBeam(ctx);
+    }
+    for (const b of this.pbullets) drawBullet(ctx, b);
+    for (const b of this.ebullets) drawEnemyBullet(ctx, b, this.time);
+    if (this.state === 'playing' && this.player.alive) this.player.draw(ctx);
+    Particles.draw(ctx);
+    Popups.draw(ctx);
+  },
+
+  drawBeam(ctx) {
+    const p = this.player;
+    const yTop = this.beamY;
+    const yBot = p.y - 18;
+    if (yBot <= yTop) return;
+    const flick = 0.8 + Math.sin(this.time * 60) * 0.2;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createLinearGradient(p.x - 7, 0, p.x + 7, 0);
+    g.addColorStop(0, 'rgba(183,255,46,0)');
+    g.addColorStop(0.5, `rgba(183,255,46,${0.5 * flick})`);
+    g.addColorStop(1, 'rgba(183,255,46,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(p.x - 7, yTop, 14, yBot - yTop);
+    ctx.fillStyle = `rgba(255,255,255,${0.75 * flick})`;
+    ctx.shadowColor = '#b7ff2e';
+    ctx.shadowBlur = 14;
+    ctx.fillRect(p.x - 1.6, yTop, 3.2, yBot - yTop);
+    ctx.restore();
+  },
+};
