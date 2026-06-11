@@ -1,11 +1,13 @@
 'use strict';
 
+/* drone = flying donut · sentry = toilet alien · splitter = snot blob
+   mite = booger · diver = zombie pickle */
 const ENEMY = {
-  drone:    { hp: 20, r: 14, score: 100, color: '#ff4dd8', fire: 0 },
-  sentry:   { hp: 48, r: 17, score: 250, color: '#ffa033', fire: 2.4 },
-  splitter: { hp: 34, r: 15, score: 200, color: '#6dff8a', fire: 0 },
-  mite:     { hp: 10, r: 9,  score: 60,  color: '#6dff8a', fire: 0 },
-  diver:    { hp: 16, r: 12, score: 150, color: '#ff3b5c', fire: 0 },
+  drone:    { hp: 20, r: 14, score: 100, color: '#ff7ad1', fire: 0 },
+  sentry:   { hp: 48, r: 17, score: 250, color: '#cfe6f0', fire: 2.4 },
+  splitter: { hp: 34, r: 15, score: 200, color: '#8aff3a', fire: 0 },
+  mite:     { hp: 10, r: 9,  score: 60,  color: '#8aff3a', fire: 0 },
+  diver:    { hp: 16, r: 12, score: 150, color: '#58d83a', fire: 0 },
 };
 
 class Enemy {
@@ -96,7 +98,7 @@ class Enemy {
         Particles.spawn({
           x: this.x - this.vx * 0.03, y: this.y - this.vy * 0.03,
           vx: U.rand(-15, 15), vy: U.rand(-15, 15),
-          color: '#ff3b5c', type: 'flame', size: 2.5, life: 0.22, glow: 8, drag: 1,
+          color: '#8aff3a', type: 'flame', size: 2.5, life: 0.22, glow: 8, drag: 1,
         });
         if (this.y > g.LH + 40 || this.x < -40 || this.x > g.LW + 40) this.dead = true;
       }
@@ -108,7 +110,7 @@ class Enemy {
     g.ebullets.push({
       x: this.x, y: this.y + 8,
       vx: Math.cos(a) * speed, vy: Math.sin(a) * speed,
-      r: 5, type: 'orb', dead: false,
+      r: 5, type: this.type === 'sentry' ? 'orb2' : 'orb', dead: false,
     });
     Sfx.enemyShoot();
   }
@@ -137,92 +139,187 @@ class Enemy {
   }
 }
 
+function googly(ctx, x, y, r, px, py) {
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, U.TAU);
+  ctx.fill();
+  ctx.fillStyle = '#140a10';
+  ctx.beginPath();
+  ctx.arc(x + px, y + py, r * 0.45, 0, U.TAU);
+  ctx.fill();
+}
+
 function drawEnemyShape(ctx, e, t, flash) {
   const c = e.spec.color;
   ctx.shadowColor = c;
   ctx.shadowBlur = 12;
   ctx.lineWidth = 1.3;
+  const wt = t * 2 + e.ph;
 
-  const path = () => {
+  if (e.type === 'drone') {
+    // flying donut
+    ctx.rotate(Math.sin(wt * 1.5) * 0.12);
+    ctx.fillStyle = '#d8954a';
     ctx.beginPath();
-    if (e.type === 'drone') {
-      ctx.moveTo(0, 15);
-      ctx.lineTo(4, 4);
-      ctx.lineTo(14, 8);
-      ctx.lineTo(9, -9);
-      ctx.lineTo(0, -6);
-      ctx.lineTo(-9, -9);
-      ctx.lineTo(-14, 8);
-      ctx.lineTo(-4, 4);
-      ctx.closePath();
-    } else if (e.type === 'sentry') {
-      const r = 17;
-      for (let i = 0; i < 6; i++) {
-        const a = (i / 6) * U.TAU + Math.PI / 6;
-        const px = Math.cos(a) * r, py = Math.sin(a) * r * 0.92;
-        if (i) ctx.lineTo(px, py);
-        else ctx.moveTo(px, py);
-      }
-      ctx.closePath();
-    } else if (e.type === 'splitter') {
-      ctx.moveTo(0, 16);
-      ctx.lineTo(12, 0);
-      ctx.lineTo(0, -16);
-      ctx.lineTo(-12, 0);
-      ctx.closePath();
-    } else if (e.type === 'mite') {
-      ctx.moveTo(0, 9);
-      ctx.lineTo(8, -7);
-      ctx.lineTo(-8, -7);
-      ctx.closePath();
-    } else { // diver
-      ctx.moveTo(0, 15);
-      ctx.lineTo(7, -3);
-      ctx.lineTo(0, -12);
-      ctx.lineTo(-7, -3);
-      ctx.closePath();
+    ctx.arc(0, 0, 14, 0, U.TAU);
+    ctx.fill();
+    ctx.fillStyle = '#ff7ad1';
+    blobPath(ctx, 12.2, wt * 0.7, 0.06);
+    ctx.fill();
+    ctx.fillStyle = '#1a0a18';
+    ctx.beginPath();
+    ctx.arc(0, 1.5, 4.4, 0, U.TAU);
+    ctx.fill();
+    ctx.strokeStyle = '#c84a9e';
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    const SPRINK = ['#fff45e', '#7df9ff', '#b7ff2e', '#ffffff', '#ffd02e', '#9e7aff'];
+    for (let i = 0; i < 6; i++) {
+      const a = e.ph + i * 1.05;
+      ctx.save();
+      ctx.translate(Math.cos(a) * 8, Math.sin(a) * 7.4);
+      ctx.rotate(a + i);
+      ctx.fillStyle = SPRINK[i];
+      ctx.fillRect(-2.2, -0.8, 4.4, 1.6);
+      ctx.restore();
     }
-  };
-
-  const g = ctx.createLinearGradient(0, -16, 0, 16);
-  g.addColorStop(0, '#1a1430');
-  g.addColorStop(1, '#0c0a1c');
-  path();
-  ctx.fillStyle = g;
-  ctx.fill();
-  ctx.strokeStyle = c;
-  ctx.stroke();
-
-  ctx.shadowBlur = 8;
-  if (e.type === 'sentry') {
+    googly(ctx, -5, -7, 2.8, Math.sin(wt) * 0.9, 1);
+    googly(ctx, 5, -7, 2.8, Math.sin(wt + 1) * 0.9, 1);
+    if (flash) {
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.beginPath();
+      ctx.arc(0, 0, 14, 0, U.TAU);
+      ctx.fill();
+    }
+  } else if (e.type === 'sentry') {
+    // toilet alien: tank up top, hungry bowl below
+    const body = () => {
+      ctx.beginPath();
+      ctx.roundRect(-13, -19, 26, 13, 3);
+      ctx.ellipse(0, 3, 15, 11, 0, 0, U.TAU);
+    };
+    const pg = ctx.createLinearGradient(0, -19, 0, 14);
+    pg.addColorStop(0, '#f0f8fc');
+    pg.addColorStop(1, '#a8bcc8');
+    body();
+    ctx.fillStyle = pg;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(140,180,200,0.9)';
+    ctx.stroke();
+    // seat ring + dark bowl mouth with a charging loogie
+    ctx.shadowBlur = 4;
+    ctx.strokeStyle = '#e8f4f8';
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.ellipse(0, 2, 10.5, 6.5, 0, 0, U.TAU);
+    ctx.stroke();
+    ctx.fillStyle = '#140e08';
+    ctx.beginPath();
+    ctx.ellipse(0, 2, 8.4, 4.8, 0, 0, U.TAU);
+    ctx.fill();
     const charge = e.fireT < 0.4 ? 1 : 0.45 + Math.sin(t * 4 + e.ph) * 0.15;
-    const rg = ctx.createRadialGradient(0, 0, 0, 0, 0, 7);
-    rg.addColorStop(0, `rgba(255,240,210,${charge})`);
-    rg.addColorStop(0.5, `rgba(255,160,51,${charge * 0.8})`);
-    rg.addColorStop(1, 'rgba(255,160,51,0)');
+    const rg = ctx.createRadialGradient(0, 2, 0, 0, 2, 7);
+    rg.addColorStop(0, `rgba(220,255,160,${charge})`);
+    rg.addColorStop(0.5, `rgba(138,255,58,${charge * 0.8})`);
+    rg.addColorStop(1, 'rgba(138,255,58,0)');
     ctx.fillStyle = rg;
     ctx.beginPath();
-    ctx.arc(0, 0, 7, 0, U.TAU);
+    ctx.ellipse(0, 2, 7, 4.4, 0, 0, U.TAU);
     ctx.fill();
-  } else if (e.type === 'splitter') {
-    ctx.save();
-    ctx.rotate(e.bt * 2);
-    ctx.strokeStyle = c;
-    ctx.globalAlpha = 0.8;
-    ctx.strokeRect(-5, -5, 10, 10);
-    ctx.restore();
-    ctx.globalAlpha = 1;
-  } else {
-    ctx.fillStyle = c;
+    // flush lever + grumpy eyes on the tank
+    ctx.fillStyle = '#8a9aa8';
+    ctx.fillRect(-11, -16, 4, 2);
+    ctx.shadowBlur = 0;
+    googly(ctx, -5, -12, 2.6, 0, 1.1);
+    googly(ctx, 5, -12, 2.6, 0, 1.1);
+    ctx.strokeStyle = '#5a6e7a';
+    ctx.lineWidth = 1.6;
     ctx.beginPath();
-    ctx.arc(0, e.type === 'drone' ? 2 : 0, 2.4, 0, U.TAU);
+    ctx.moveTo(-8.5, -16.5); ctx.lineTo(-2.5, -14);
+    ctx.moveTo(8.5, -16.5); ctx.lineTo(2.5, -14);
+    ctx.stroke();
+    if (flash) {
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      body();
+      ctx.fill();
+    }
+  } else if (e.type === 'splitter' || e.type === 'mite') {
+    // snot blob (and its booger children)
+    const r = e.type === 'mite' ? 8.5 : 15;
+    const gg = ctx.createLinearGradient(0, -r, 0, r);
+    gg.addColorStop(0, '#c8ff6e');
+    gg.addColorStop(1, '#4e9e1e');
+    blobPath(ctx, r, wt * 1.6, 0.14);
+    ctx.fillStyle = gg;
     ctx.fill();
-  }
-
-  if (flash) {
-    path();
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.strokeStyle = c;
+    ctx.globalAlpha = 0.85;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+    // slimy gloss + dangling drip
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(-r * 0.3, -r * 0.42, r * 0.32, r * 0.18, -0.5, 0, U.TAU);
     ctx.fill();
+    ctx.fillStyle = '#6ec82e';
+    ctx.beginPath();
+    ctx.ellipse(r * 0.25, r + Math.sin(wt * 3) * 1.5, 1.6, 2.8, 0, 0, U.TAU);
+    ctx.fill();
+    if (e.type === 'mite') {
+      googly(ctx, 0, -1, 3.4, Math.sin(wt * 2) * 1.1, 0.6);
+    } else {
+      googly(ctx, -4.5, -3, 3.6, Math.sin(wt * 2) * 1.1, 0.8);
+      googly(ctx, 5.5, -5, 2.6, Math.cos(wt * 2) * 0.9, 0.8);
+    }
+    if (flash) {
+      blobPath(ctx, r, wt * 1.6, 0.14);
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fill();
+    }
+  } else {
+    // zombie pickle, very upset
+    const body = () => {
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 7.5, 14, 0, 0, U.TAU);
+    };
+    const gg = ctx.createLinearGradient(-7, 0, 7, 0);
+    gg.addColorStop(0, '#3e8a22');
+    gg.addColorStop(0.5, '#6ed83e');
+    gg.addColorStop(1, '#3e8a22');
+    body();
+    ctx.fillStyle = gg;
+    ctx.fill();
+    ctx.strokeStyle = c;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    // warty bumps
+    ctx.fillStyle = 'rgba(30,90,14,0.8)';
+    for (let i = 0; i < 5; i++) {
+      const a = e.ph * 2 + i * 2.4;
+      ctx.beginPath();
+      ctx.arc(Math.sin(a) * 4.5, ((i / 4) - 0.5) * 20, 1.1, 0, U.TAU);
+      ctx.fill();
+    }
+    // angry eyes + stitched zigzag mouth
+    googly(ctx, -3, -6, 2.4, 0, 1);
+    googly(ctx, 3, -6, 2.4, 0, 1);
+    ctx.strokeStyle = '#1e4a0e';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(-5, -9.5); ctx.lineTo(-1, -7.5);
+    ctx.moveTo(5, -9.5); ctx.lineTo(1, -7.5);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-4, 1);
+    for (let i = 0; i < 4; i++) ctx.lineTo(-4 + (i + 1) * 2, 1 + (i % 2 ? 0 : 2));
+    ctx.stroke();
+    if (flash) {
+      body();
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fill();
+    }
   }
   ctx.shadowBlur = 0;
 }
@@ -266,7 +363,7 @@ class Boss {
       if (((this.dying * 8) | 0) !== (((this.dying - dt) * 8) | 0)) {
         Particles.explosion(
           this.x + U.rand(-90, 90), this.y + U.rand(-30, 36),
-          U.pick(['#ff4dd8', '#ffa033', '#41f0ff']), U.rand(0.7, 1.3),
+          U.pick(['#ff7ad1', '#8aff3a', '#c9803a']), U.rand(0.7, 1.3),
         );
         Sfx.boom(U.rand(0.5, 1));
         g.shake(6);
@@ -390,129 +487,183 @@ class Boss {
       ctx.globalAlpha = 0.85 + Math.sin(t * 40) * 0.15;
     }
 
-    const wingPath = () => {
+    const tankPath = () => {
       ctx.beginPath();
-      ctx.moveTo(-118, -6);
-      ctx.lineTo(-64, -26);
-      ctx.lineTo(64, -26);
-      ctx.lineTo(118, -6);
-      ctx.lineTo(96, 18);
-      ctx.lineTo(40, 10);
-      ctx.lineTo(-40, 10);
-      ctx.lineTo(-96, 18);
-      ctx.closePath();
+      ctx.roundRect(-58, -64, 116, 44, 8);
     };
-    const hullPath = () => {
+    const bowlPath = () => {
       ctx.beginPath();
-      ctx.moveTo(-34, -30);
-      ctx.lineTo(34, -30);
-      ctx.lineTo(46, 6);
-      ctx.lineTo(24, 44);
-      ctx.lineTo(-24, 44);
-      ctx.lineTo(-46, 6);
-      ctx.closePath();
+      ctx.ellipse(0, 10, 64, 34, 0, 0, U.TAU);
     };
 
-    const wg = ctx.createLinearGradient(0, -34, 0, 44);
-    wg.addColorStop(0, '#241a3e');
-    wg.addColorStop(0.55, '#141128');
-    wg.addColorStop(1, '#0b0918');
+    // slimy tentacle arms, waving plungers
+    ctx.lineCap = 'round';
+    for (const s of [-1, 1]) {
+      for (let i = 0; i < 3; i++) {
+        const wave = Math.sin(t * 2.4 + i * 1.8 + s) * 12;
+        ctx.strokeStyle = i === 1 ? '#4e9e1e' : '#58c83a';
+        ctx.lineWidth = 7 - i * 1.5;
+        ctx.shadowColor = '#8aff3a';
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.moveTo(s * 40, 4 - i * 6);
+        ctx.quadraticCurveTo(s * (66 + i * 8), -18 + wave, s * (88 + i * 6), -2 + wave + i * 10);
+        ctx.stroke();
+      }
+      // plunger in the middle tentacle's grip
+      const wave = Math.sin(t * 2.4 + 1.8 + s) * 12;
+      const px2 = s * 94, py2 = wave + 8;
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#b8884a';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(px2, py2 - 16);
+      ctx.lineTo(px2, py2);
+      ctx.stroke();
+      ctx.fillStyle = '#c83a3a';
+      ctx.beginPath();
+      ctx.ellipse(px2, py2 + 3, 9, 6, 0, Math.PI, 0, false);
+      ctx.fill();
+    }
 
-    ctx.shadowColor = '#ff4dd8';
-    ctx.shadowBlur = 16;
-    wingPath();
-    ctx.fillStyle = wg;
+    // porcelain tank with crown
+    const pg = ctx.createLinearGradient(0, -64, 0, 44);
+    pg.addColorStop(0, '#fdffff');
+    pg.addColorStop(0.55, '#d4e2ea');
+    pg.addColorStop(1, '#9ab2c0');
+    ctx.shadowColor = '#bfe8ff';
+    ctx.shadowBlur = 7;
+    tankPath();
+    ctx.fillStyle = pg;
     ctx.fill();
-    ctx.strokeStyle = 'rgba(255,77,216,0.75)';
+    ctx.strokeStyle = 'rgba(140,180,200,0.9)';
     ctx.lineWidth = 1.6;
     ctx.stroke();
 
-    ctx.shadowColor = '#41f0ff';
-    hullPath();
-    ctx.fillStyle = wg;
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(64,240,255,0.8)';
-    ctx.stroke();
-
-    // panel lines
-    ctx.globalAlpha *= 0.5;
-    ctx.strokeStyle = '#2c3b66';
     ctx.shadowBlur = 0;
-    ctx.lineWidth = 1;
+    ctx.fillStyle = '#ffd84d';
+    ctx.strokeStyle = '#b8902e';
     ctx.beginPath();
-    ctx.moveTo(-92, 0); ctx.lineTo(-44, -14);
-    ctx.moveTo(92, 0); ctx.lineTo(44, -14);
-    ctx.moveTo(-20, -22); ctx.lineTo(-20, 30);
-    ctx.moveTo(20, -22); ctx.lineTo(20, 30);
+    ctx.moveTo(-30, -64);
+    for (let i = 0; i < 5; i++) {
+      ctx.lineTo(-30 + i * 15 + 7.5, -82);
+      ctx.lineTo(-30 + (i + 1) * 15, -64);
+    }
+    ctx.closePath();
+    ctx.fill();
     ctx.stroke();
-    ctx.globalAlpha = this.state === 'dying' ? 0.85 + Math.sin(t * 40) * 0.15 : 1;
-
-    // wing engines + blinkers
-    for (const s of [-1, 1]) {
-      const eg = ctx.createRadialGradient(78 * s, -8, 0, 78 * s, -8, 13);
-      eg.addColorStop(0, 'rgba(255,255,255,0.9)');
-      eg.addColorStop(0.4, 'rgba(255,77,216,0.5)');
-      eg.addColorStop(1, 'rgba(255,77,216,0)');
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.fillStyle = eg;
+    ctx.fillStyle = '#c83a8e';
+    for (let i = 0; i < 5; i++) {
       ctx.beginPath();
-      ctx.arc(78 * s, -8, 13, 0, U.TAU);
+      ctx.arc(-30 + i * 15 + 7.5, -74, 1.8, 0, U.TAU);
       ctx.fill();
-      ctx.globalCompositeOperation = 'source-over';
-      if ((t * 2 + (s + 1) / 2) % 1 < 0.12) {
-        ctx.fillStyle = '#fff';
-        ctx.shadowColor = '#fff';
-        ctx.shadowBlur = 8;
-        ctx.beginPath();
-        ctx.arc(108 * s, -4, 2, 0, U.TAU);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-      }
     }
 
-    // rotating weak-point core
+    // furious eyes on the tank, tracking the player
+    const lookX = U.clamp((g.player.x - this.x) / 60, -3, 3);
+    for (const s of [-1, 1]) {
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.ellipse(s * 24, -44, 11, 8, 0, 0, U.TAU);
+      ctx.fill();
+      const red = this.phase === 2 ? '#ff2e2e' : '#c81e50';
+      ctx.fillStyle = red;
+      ctx.shadowColor = red;
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(s * 24 + lookX, -43, 4, 0, U.TAU);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#0a0608';
+      ctx.beginPath();
+      ctx.arc(s * 24 + lookX, -43, 1.8, 0, U.TAU);
+      ctx.fill();
+      ctx.strokeStyle = '#4a5a64';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(s * 34, -55);
+      ctx.lineTo(s * 12, -48);
+      ctx.stroke();
+    }
+    // flush lever
+    ctx.fillStyle = '#8a9aa8';
+    ctx.fillRect(-52, -58, 10, 4);
+
+    // the bowl
+    ctx.shadowColor = '#bfe8ff';
+    ctx.shadowBlur = 7;
+    bowlPath();
+    ctx.fillStyle = pg;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(110,150,175,0.95)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#e8f4f8';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.ellipse(0, 6, 46, 21, 0, 0, U.TAU);
+    ctx.stroke();
+
+    // grime drips down the porcelain
+    ctx.fillStyle = 'rgba(110,200,46,0.75)';
+    for (const [dx, dl] of [[-34, 10], [-10, 16], [16, 8], [38, 13]]) {
+      ctx.beginPath();
+      ctx.ellipse(dx, 26 + dl / 2 + Math.sin(t * 2 + dx) * 1.5, 2.2, dl / 2 + 3, 0, 0, U.TAU);
+      ctx.fill();
+    }
+
+    // swirling sewage weak point inside the bowl
     const ph2 = this.phase === 2;
-    const core = ph2 ? '#ff8a3d' : '#41f0ff';
+    const core = ph2 ? '#ff8a3d' : '#8aff3a';
     const pulse = 0.6 + Math.sin(t * (ph2 ? 9 : 5)) * 0.3;
+    ctx.fillStyle = '#140e06';
+    ctx.beginPath();
+    ctx.ellipse(0, 5, 38, 16, 0, 0, U.TAU);
+    ctx.fill();
     ctx.save();
-    ctx.translate(0, 26);
-    ctx.rotate(t * 1.4);
+    ctx.beginPath();
+    ctx.ellipse(0, 5, 38, 16, 0, 0, U.TAU);
+    ctx.clip();
+    ctx.translate(0, 5);
+    ctx.scale(1, 0.42);
+    ctx.rotate(t * 2.2);
     ctx.strokeStyle = core;
     ctx.shadowColor = core;
     ctx.shadowBlur = 14;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 4;
     for (let i = 0; i < 4; i++) {
       ctx.beginPath();
-      ctx.arc(0, 0, 13, (i * U.TAU) / 4 + 0.18, ((i + 0.7) * U.TAU) / 4);
+      ctx.arc(0, 0, 12 + i * 8, (i * U.TAU) / 4, (i * U.TAU) / 4 + 2.4);
       ctx.stroke();
     }
-    const cg = ctx.createRadialGradient(0, 0, 0, 0, 0, 10);
+    const cg = ctx.createRadialGradient(0, 0, 0, 0, 0, 16);
     cg.addColorStop(0, `rgba(255,255,255,${pulse})`);
     cg.addColorStop(0.6, core);
     cg.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.globalCompositeOperation = 'lighter';
     ctx.fillStyle = cg;
     ctx.beginPath();
-    ctx.arc(0, 0, 10, 0, U.TAU);
+    ctx.arc(0, 0, 16, 0, U.TAU);
     ctx.fill();
     ctx.restore();
 
     if (this.flash > 0) {
       ctx.shadowBlur = 0;
       ctx.fillStyle = 'rgba(255,255,255,0.55)';
-      wingPath();
+      tankPath();
       ctx.fill();
-      hullPath();
+      bowlPath();
       ctx.fill();
     }
     ctx.restore();
     ctx.shadowBlur = 0;
     ctx.globalAlpha = 1;
 
-    // telegraphed beam attack (world coords)
+    // telegraphed sewage geyser (world coords)
     if (this.beamState === 1) {
       if (Math.sin(g.time * 30) > 0) {
-        ctx.strokeStyle = 'rgba(255,120,60,0.55)';
+        ctx.strokeStyle = 'rgba(140,230,46,0.55)';
         ctx.setLineDash([8, 8]);
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -526,13 +677,13 @@ class Boss {
       ctx.globalCompositeOperation = 'lighter';
       const w = 26 + Math.sin(g.time * 50) * 4;
       const bg = ctx.createLinearGradient(this.beamX - w, 0, this.beamX + w, 0);
-      bg.addColorStop(0, 'rgba(255,120,60,0)');
-      bg.addColorStop(0.5, 'rgba(255,140,60,0.55)');
-      bg.addColorStop(1, 'rgba(255,120,60,0)');
+      bg.addColorStop(0, 'rgba(140,230,46,0)');
+      bg.addColorStop(0.5, 'rgba(150,230,60,0.55)');
+      bg.addColorStop(1, 'rgba(140,230,46,0)');
       ctx.fillStyle = bg;
       ctx.fillRect(this.beamX - w, this.y + 36, w * 2, g.LH - this.y);
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.shadowColor = '#ff8a3d';
+      ctx.fillStyle = 'rgba(240,255,210,0.85)';
+      ctx.shadowColor = '#8aff3a';
       ctx.shadowBlur = 18;
       ctx.fillRect(this.beamX - 4, this.y + 36, 8, g.LH - this.y);
       ctx.restore();
@@ -540,14 +691,14 @@ class Boss {
         Particles.spawn({
           x: this.beamX + U.rand(-10, 10), y: g.LH - 6,
           vx: U.rand(-120, 120), vy: U.rand(-220, -60),
-          color: '#ff8a3d', size: 2.5, life: 0.4, glow: 10,
+          color: '#8aff3a', size: 2.5, life: 0.4, glow: 10,
         });
       }
     }
   }
 }
 
-/* Demo level: 5 choreographed waves, then the Sector Warden. */
+/* Demo level: 5 choreographed waves, then the Great Toilet Overlord. */
 const Level = {
   waves: [], waveIdx: -1, queue: [], betweenT: 0, bossSpawned: false, done: false,
 
@@ -564,7 +715,7 @@ const Level = {
     const LW = g.LW, cx = LW / 2;
     const waves = [];
 
-    // W1 — mirrored drone swoops
+    // W1 — mirrored donut swoops
     {
       const list = [];
       for (let i = 0; i < 4; i++) {
@@ -577,10 +728,10 @@ const Level = {
           slot: { x: cx + 32 + i * 40, y: 172 }, dur: 1.9,
         }) });
       }
-      waves.push({ name: 'WAVE 1', sub: 'hostiles inbound', list });
+      waves.push({ name: 'WAVE 1', sub: 'the donuts have found you', list });
     }
 
-    // W2 — sentry line + drone curtain; gift: scatter
+    // W2 — toilet line + donut curtain; gift: scatter
     {
       const list = [{ d: 0.3, gift: 'scatter' }];
       for (let i = 0; i < 3; i++) {
@@ -594,10 +745,10 @@ const Level = {
           slot: { x: 60 + (i * (LW - 120)) / 5, y: 205 }, dur: 1.7,
         }) });
       }
-      waves.push({ name: 'WAVE 2', sub: 'scatter array acquired', list });
+      waves.push({ name: 'WAVE 2', sub: 'toilets inbound · sprinkle spray acquired', list });
     }
 
-    // W3 — splitters + divers; gift: missiles
+    // W3 — snot blobs + pickles; gift: anchovies
     {
       const list = [{ d: 0.4, gift: 'missile' }];
       for (let i = 0; i < 4; i++) {
@@ -613,10 +764,10 @@ const Level = {
           diveDelay: U.rand(0.6, 1.6),
         }) });
       }
-      waves.push({ name: 'WAVE 3', sub: 'they break apart — stay sharp', list });
+      waves.push({ name: 'WAVE 3', sub: 'snot blobs split. ew. just... ew', list });
     }
 
-    // W4 — classic invader grid + flanking sentries; gift: railbeam
+    // W4 — classic invader grid + flanking toilets; gift: mustard beam
     {
       const list = [{ d: 0.4, gift: 'beam' }];
       const cols = 6, rows = 3;
@@ -631,10 +782,10 @@ const Level = {
       }
       list.push({ d: 2.2, e: () => new Enemy('sentry', { from: { x: -40, y: 240 }, slot: { x: 70, y: 235 }, dur: 1.4 }) });
       list.push({ d: 2.4, e: () => new Enemy('sentry', { from: { x: LW + 40, y: 240 }, slot: { x: LW - 70, y: 235 }, dur: 1.4 }) });
-      waves.push({ name: 'WAVE 4', sub: 'formation detected', list });
+      waves.push({ name: 'WAVE 4', sub: 'a dozen donuts. classic formation', list });
     }
 
-    // W5 — diver rush + chaos
+    // W5 — pickle rush + chaos
     {
       const list = [];
       for (let i = 0; i < 6; i++) {
@@ -651,7 +802,7 @@ const Level = {
         }) });
       }
       list.push({ d: 2, e: () => new Enemy('sentry', { from: { x: cx, y: -50 }, slot: { x: cx, y: 128 }, dur: 1.4 }) });
-      waves.push({ name: 'WAVE 5', sub: 'final push before the warden', list });
+      waves.push({ name: 'WAVE 5', sub: 'last call before the big flush', list });
     }
 
     return waves;
@@ -682,7 +833,7 @@ const Level = {
           this.betweenT = 1.6;
         } else if (!this.bossSpawned) {
           this.bossSpawned = true;
-          g.banner('⚠ WARDEN INBOUND ⚠', 'massive signature detected', true);
+          g.banner('⚠ TOILET OVERLORD ⚠', 'something huge just clogged the sector', true);
           Sfx.alarm();
           this.queue = [{ d: 2.2, boss: true }];
         }

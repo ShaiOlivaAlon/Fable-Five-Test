@@ -64,20 +64,25 @@ const Sfx = {
   },
 
   shoot(kind) {
-    if (kind === 'pulse') this.tone({ type: 'square', f0: 920, f1: 260, dur: 0.07, vol: 0.05 });
+    // blorpy, wet-sounding pews
+    if (kind === 'pulse') this.tone({ type: 'square', f0: 480, f1: 90, dur: 0.09, vol: 0.05 });
     else if (kind === 'scatter') this.tone({ type: 'sawtooth', f0: 640, f1: 140, dur: 0.11, vol: 0.05 });
     else if (kind === 'missile') this.noise({ dur: 0.22, vol: 0.09, f0: 2600, f1: 320, type: 'bandpass', q: 1.4 });
     else if (kind === 'beam') this.tone({ type: 'sawtooth', f0: 96, f1: 80, dur: 0.12, vol: 0.035 });
   },
-  enemyShoot() { this.tone({ type: 'square', f0: 340, f1: 130, dur: 0.09, vol: 0.03 }); },
+  enemyShoot() { this.tone({ type: 'triangle', f0: 220, f1: 55, dur: 0.12, vol: 0.04 }); },
   hit() { this.tone({ type: 'triangle', f0: 420, f1: 120, dur: 0.05, vol: 0.05 }); },
   boom(size = 1) {
+    // splat first, rumble after
+    this.tone({ type: 'triangle', f0: 500, f1: 50, dur: 0.16 + 0.08 * size, vol: 0.08 });
     this.noise({ dur: 0.32 + 0.28 * size, vol: 0.16 + 0.1 * size, f0: 1400, f1: 50 });
     this.tone({ type: 'sine', f0: 150 + 40 * size, f1: 28, dur: 0.3 + 0.25 * size, vol: 0.22, attack: 0.005 });
   },
   pickup() {
-    this.tone({ type: 'sine', f0: 660, f1: 880, dur: 0.09, vol: 0.1 });
-    this.tone({ type: 'sine', f0: 990, f1: 1320, dur: 0.14, vol: 0.1, delay: 0.07 });
+    // gulp-blub-bloop
+    this.tone({ type: 'sine', f0: 240, f1: 520, dur: 0.07, vol: 0.09 });
+    this.tone({ type: 'sine', f0: 660, f1: 880, dur: 0.09, vol: 0.1, delay: 0.06 });
+    this.tone({ type: 'sine', f0: 990, f1: 1320, dur: 0.14, vol: 0.1, delay: 0.13 });
   },
   weaponUp() {
     [523, 659, 784, 1047].forEach((f, i) => this.tone({ type: 'square', f0: f, dur: 0.1, vol: 0.06, delay: i * 0.06 }));

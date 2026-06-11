@@ -24,7 +24,7 @@ const Game = {
     this.resize();
     this.player = new Player(this);
     let best = 0;
-    try { best = +(localStorage.getItem('nv_best') || 0); } catch (e) { /* private mode */ }
+    try { best = +(localStorage.getItem('sg_best') || 0); } catch (e) { /* private mode */ }
     if (best) this.els.best.textContent = 'BEST ' + best.toLocaleString();
   },
 
@@ -76,7 +76,10 @@ const Game = {
   },
 
   bullet(x, y, vx, vy, dmg, type) {
-    return { x, y, vx, vy, dmg, type, r: type === 'missile' ? 6 : 4, dead: false, smoke: 0 };
+    return {
+      x, y, vx, vy, dmg, type, r: type === 'missile' ? 6 : 4,
+      hue: (Math.random() * 360) | 0, dead: false, smoke: 0,
+    };
   },
 
   shake(a) { this.shakeAmp = Math.max(this.shakeAmp, a); },
@@ -224,7 +227,7 @@ const Game = {
       b.smoke = 0.03;
       Particles.spawn({
         x: b.x, y: b.y, vx: U.rand(-10, 10), vy: U.rand(-10, 10),
-        color: '#ffb347', type: 'flame', size: 2.5, life: 0.3, glow: 8, drag: 1,
+        color: '#7df9ff', type: 'flame', size: 2.5, life: 0.3, glow: 8, drag: 1,
       });
     }
   },
@@ -252,17 +255,17 @@ const Game = {
         Particles.spawn({
           x: p.x + U.rand(-4, 4), y: this.beamY,
           vx: U.rand(-90, 90), vy: U.rand(-60, 30),
-          color: '#b7ff2e', size: 2.5, life: 0.25, glow: 10,
+          color: '#ffd02e', size: 2.5, life: 0.25, glow: 10,
         });
       }
     }
   },
 
   impact(b) {
-    const colors = { pulse: '#41f0ff', scatter: '#ff4dd8', missile: '#ffb347' };
+    const colors = { pulse: '#ffb347', scatter: '#ff4dd8', missile: '#9fd8e8' };
     Particles.burst(b.x, b.y, colors[b.type] || '#fff', 4, 130, { life: 0.2, size: 2 });
     if (b.type === 'missile') {
-      Particles.explosion(b.x, b.y, '#ffb347', 0.6);
+      Particles.explosion(b.x, b.y, '#9fd8e8', 0.6);
       Sfx.boom(0.3);
       this.shake(2);
     }
@@ -274,8 +277,12 @@ const Game = {
     this.maxCombo = Math.max(this.maxCombo, this.combo);
     const gain = Math.round((e.spec.score + Math.min(this.combo, 10) * 10) * this.player.mult);
     this.score += gain;
-    Popups.spawn(e.x, e.y, '+' + gain, this.player.mult > 1 ? '#ff4dd8' : '#bfefff', 13);
-    if (this.combo >= 3) Popups.spawn(e.x, e.y - 18, '×' + this.combo + ' CHAIN', '#ffd84d', 11);
+    Popups.spawn(e.x, e.y, '+' + gain, this.player.mult > 1 ? '#c86bff' : '#d8ffc0', 13);
+    if (this.combo >= 3) {
+      Popups.spawn(e.x, e.y - 18,
+        '×' + this.combo + ' ' + U.pick(['EW!', 'GROSS!', 'NASTY!', 'YUCK!', 'SPLAT!']),
+        '#ffd84d', 11);
+    }
     Particles.explosion(e.x, e.y, e.spec.color, e.type === 'sentry' ? 1.25 : e.type === 'mite' ? 0.6 : 1);
     Sfx.boom(e.type === 'sentry' ? 0.9 : 0.55);
     this.shake(e.type === 'sentry' ? 5 : 3);
@@ -303,10 +310,10 @@ const Game = {
       p.weaponT = 16;
       label = WEAPONS[k].name;
       Sfx.weaponUp();
-    } else if (k === 'shield') { p.shield = 1; label = 'SHIELD'; }
-    else if (k === 'over') { p.over = 8; label = 'OVERDRIVE'; }
+    } else if (k === 'shield') { p.shield = 1; label = 'BUBBLE GUM'; }
+    else if (k === 'over') { p.over = 8; label = 'HOT SAUCE!'; }
     else if (k === 'mult') { p.mult = 2; p.multT = 12; label = 'SCORE ×2'; }
-    else if (k === 'repair') { p.hp = Math.min(p.maxHp, p.hp + 1); label = 'NANO-REPAIR'; }
+    else if (k === 'repair') { p.hp = Math.min(p.maxHp, p.hp + 1); label = 'TP PATCH'; }
     Popups.spawn(u.x, u.y, label, BOOSTS[k].color, 12);
   },
 
@@ -331,7 +338,7 @@ const Game = {
   },
 
   playerDestroyed() {
-    Particles.explosion(this.player.x, this.player.y, '#41f0ff', 2.2);
+    Particles.explosion(this.player.x, this.player.y, '#ffb347', 2.2);
     Sfx.boom(1.6);
     this.shake(22);
     this.hitstop = 0.25;
@@ -365,8 +372,8 @@ const Game = {
 
   saveBest() {
     try {
-      const best = +(localStorage.getItem('nv_best') || 0);
-      if (this.score > best) localStorage.setItem('nv_best', this.score);
+      const best = +(localStorage.getItem('sg_best') || 0);
+      if (this.score > best) localStorage.setItem('sg_best', this.score);
     } catch (e) { /* private mode */ }
   },
 
@@ -399,9 +406,9 @@ const Game = {
       els.weapon.style.color = WEAPONS[p.weapon].color;
     }
     let bs = '';
-    if (p.shield > 0) bs += '<span class="chip" style="color:#41f0ff">SHIELD</span>';
-    if (p.over > 0) bs += `<span class="chip" style="color:#ffd84d">OVERDRIVE ${Math.ceil(p.over)}</span>`;
-    if (p.mult > 1) bs += `<span class="chip" style="color:#ff4dd8">×2 SCORE ${Math.ceil(p.multT)}</span>`;
+    if (p.shield > 0) bs += '<span class="chip" style="color:#ff8ad8">BUBBLE GUM</span>';
+    if (p.over > 0) bs += `<span class="chip" style="color:#ff5e3a">HOT SAUCE ${Math.ceil(p.over)}</span>`;
+    if (p.mult > 1) bs += `<span class="chip" style="color:#c86bff">×2 SCORE ${Math.ceil(p.multT)}</span>`;
     if (bs !== this.lastBoost) {
       this.lastBoost = bs;
       els.boosts.innerHTML = bs;
@@ -440,13 +447,13 @@ const Game = {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     const g = ctx.createLinearGradient(p.x - 7, 0, p.x + 7, 0);
-    g.addColorStop(0, 'rgba(183,255,46,0)');
-    g.addColorStop(0.5, `rgba(183,255,46,${0.5 * flick})`);
-    g.addColorStop(1, 'rgba(183,255,46,0)');
+    g.addColorStop(0, 'rgba(255,208,46,0)');
+    g.addColorStop(0.5, `rgba(255,208,46,${0.5 * flick})`);
+    g.addColorStop(1, 'rgba(255,208,46,0)');
     ctx.fillStyle = g;
     ctx.fillRect(p.x - 7, yTop, 14, yBot - yTop);
-    ctx.fillStyle = `rgba(255,255,255,${0.75 * flick})`;
-    ctx.shadowColor = '#b7ff2e';
+    ctx.fillStyle = `rgba(255,255,235,${0.75 * flick})`;
+    ctx.shadowColor = '#ffd02e';
     ctx.shadowBlur = 14;
     ctx.fillRect(p.x - 1.6, yTop, 3.2, yBot - yTop);
     ctx.restore();

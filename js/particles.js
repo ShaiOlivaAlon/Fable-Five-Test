@@ -66,19 +66,22 @@ const Particles = {
         const s = Math.max(0.8, p.size * (p.type === 'flame' ? k : 0.6 + 0.4 * k)) * 3.2;
         ctx.drawImage(U.glow(p.color), p.x - s, p.y - s, s * 2, s * 2);
       } else if (p.type === 'debris') {
+        // gooey chunk: squishy ellipse that stretches as it tumbles
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = k;
         ctx.fillStyle = p.color;
         ctx.save();
         ctx.translate(p.x, p.y);
         ctx.rotate(p.rot);
-        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, p.size / 2, p.size * 0.32, 0, 0, U.TAU);
+        ctx.fill();
         ctx.restore();
       } else if (p.type === 'smoke') {
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = 0.14 * k;
         const r = p.size * (1 + p.t * 1.6);
-        ctx.drawImage(U.glow('#4a3a6e'), p.x - r, p.y - r, r * 2, r * 2);
+        ctx.drawImage(U.glow('#4e5a2e'), p.x - r, p.y - r, r * 2, r * 2);
       } else if (p.type === 'ring') {
         ctx.globalCompositeOperation = 'lighter';
         const e = U.outCubic(p.t / p.life);
