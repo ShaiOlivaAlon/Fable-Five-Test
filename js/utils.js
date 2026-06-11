@@ -38,6 +38,55 @@ const U = {
     }
     return c;
   },
+
+  /* cached shaded-sphere sprites: top-left key light, specular hot spot,
+     darkened limb — instant volume for bullets and orbs */
+  _sphereCache: {},
+  sphere(color) {
+    let c = U._sphereCache[color];
+    if (!c) {
+      c = document.createElement('canvas');
+      c.width = c.height = 64;
+      const x = c.getContext('2d');
+      const g = x.createRadialGradient(22, 20, 2, 30, 30, 32);
+      g.addColorStop(0, '#ffffff');
+      g.addColorStop(0.18, color);
+      g.addColorStop(0.78, color);
+      g.addColorStop(1, 'rgba(8,4,12,0.9)');
+      x.fillStyle = g;
+      x.beginPath();
+      x.arc(32, 32, 31, 0, Math.PI * 2);
+      x.fill();
+      U._sphereCache[color] = c;
+    }
+    return c;
+  },
+
+  /* cached soft black blob, used as a drop shadow to lift sprites off the
+     background */
+  _soft: null,
+  soft() {
+    if (!U._soft) {
+      const c = document.createElement('canvas');
+      c.width = c.height = 64;
+      const x = c.getContext('2d');
+      const g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+      g.addColorStop(0, 'rgba(0,0,0,0.55)');
+      g.addColorStop(0.6, 'rgba(0,0,0,0.28)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      x.fillStyle = g;
+      x.fillRect(0, 0, 64, 64);
+      U._soft = c;
+    }
+    return U._soft;
+  },
+
+  /* soft elevation shadow at an offset below-right of the light source */
+  dropShadow(ctx, r, dx = 4, dy = 9, a = 0.4) {
+    ctx.globalAlpha *= a;
+    ctx.drawImage(U.soft(), dx - r * 1.25, dy - r * 1.05, r * 2.5, r * 2.1);
+    ctx.globalAlpha = Math.min(1, ctx.globalAlpha / a);
+  },
 };
 
 if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect) {

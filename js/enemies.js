@@ -131,6 +131,10 @@ class Enemy {
     if (this.delay > 0) return;
     ctx.save();
     ctx.translate(this.x, this.y);
+    // depth cue: things higher up the playfield sit further away
+    const ds = 0.86 + 0.24 * U.clamp(this.y / g.LH, 0, 1);
+    ctx.scale(ds, ds);
+    U.dropShadow(ctx, this.r, 4, this.r * 0.75 + 4, 0.34);
     if (this.type === 'diver' && this.diving) {
       ctx.rotate(Math.atan2(this.vy, this.vx) - Math.PI / 2);
     }
@@ -139,14 +143,32 @@ class Enemy {
   }
 }
 
+/* gradients here live in fixed local coordinates, so build each once and
+   reuse it every frame for every enemy */
+const GRADS = {};
+function cgrad(ctx, key, make) {
+  return GRADS[key] || (GRADS[key] = make());
+}
+
 function googly(ctx, x, y, r, px, py) {
-  ctx.fillStyle = '#ffffff';
+  // shaded eyeball dome with a wet glint
+  ctx.fillStyle = cgrad(ctx, `eye${x}|${y}|${r}`, () => {
+    const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r);
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(0.65, '#ece6da');
+    g.addColorStop(1, '#a89e8a');
+    return g;
+  });
   ctx.beginPath();
   ctx.arc(x, y, r, 0, U.TAU);
   ctx.fill();
   ctx.fillStyle = '#140a10';
   ctx.beginPath();
   ctx.arc(x + px, y + py, r * 0.45, 0, U.TAU);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.beginPath();
+  ctx.arc(x + px - r * 0.18, y + py - r * 0.2, r * 0.16, 0, U.TAU);
   ctx.fill();
 }
 
@@ -158,30 +180,68 @@ function drawEnemyShape(ctx, e, t, flash) {
   const wt = t * 2 + e.ph;
 
   if (e.type === 'drone') {
-    // flying donut
+    // flying donut: shaded torus with a frosting cap
     ctx.rotate(Math.sin(wt * 1.5) * 0.12);
-    ctx.fillStyle = '#d8954a';
+    ctx.fillStyle = cgrad(ctx, 'dough', () => {
+      const g = ctx.createRadialGradient(-4.5, -5.5, 1, 0, 0, 15);
+      g.addColorStop(0, '#f4c280');
+      g.addColorStop(0.55, '#cd8c42');
+      g.addColorStop(1, '#7e4c1c');
+      return g;
+    });
     ctx.beginPath();
     ctx.arc(0, 0, 14, 0, U.TAU);
     ctx.fill();
-    ctx.fillStyle = '#ff7ad1';
+    // frosting thickness: dark lip first, lit cap on top
+    ctx.fillStyle = '#b03a82';
     blobPath(ctx, 12.2, wt * 0.7, 0.06);
     ctx.fill();
-    ctx.fillStyle = '#1a0a18';
+    ctx.save();
+    ctx.translate(-0.6, -1.4);
+    ctx.fillStyle = cgrad(ctx, 'frost', () => {
+      const g = ctx.createLinearGradient(-9, -11, 8, 9);
+      g.addColorStop(0, '#ffaae2');
+      g.addColorStop(0.55, '#ff7ad1');
+      g.addColorStop(1, '#d8559e');
+      return g;
+    });
+    blobPath(ctx, 12.2, wt * 0.7, 0.06);
+    ctx.fill();
+    ctx.restore();
+    // hole with inner shadow, lit on its lower lip
+    ctx.fillStyle = cgrad(ctx, 'hole', () => {
+      const g = ctx.createRadialGradient(0, 1.5, 0.5, 0, 1.5, 5);
+      g.addColorStop(0, '#0c0510');
+      g.addColorStop(0.75, '#1e0c1a');
+      g.addColorStop(1, '#552a48');
+      return g;
+    });
     ctx.beginPath();
     ctx.arc(0, 1.5, 4.4, 0, U.TAU);
     ctx.fill();
-    ctx.strokeStyle = '#c84a9e';
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(0, 1.5, 4.4, 0.3, Math.PI - 0.3);
     ctx.stroke();
     ctx.shadowBlur = 0;
+    // wet sheen on the frosting
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(-5, -7, 4.4, 2, -0.6, 0, U.TAU);
+    ctx.fill();
     const SPRINK = ['#fff45e', '#7df9ff', '#b7ff2e', '#ffffff', '#ffd02e', '#9e7aff'];
     for (let i = 0; i < 6; i++) {
       const a = e.ph + i * 1.05;
       ctx.save();
-      ctx.translate(Math.cos(a) * 8, Math.sin(a) * 7.4);
+      ctx.translate(Math.cos(a) * 8 - 0.6, Math.sin(a) * 7.4 - 1.4);
       ctx.rotate(a + i);
+      ctx.fillStyle = 'rgba(60,10,50,0.5)';
+      ctx.fillRect(-2.2, -0.3, 4.4, 1.6);
       ctx.fillStyle = SPRINK[i];
       ctx.fillRect(-2.2, -0.8, 4.4, 1.6);
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.fillRect(-1.8, -0.6, 3.6, 0.5);
       ctx.restore();
     }
     googly(ctx, -5, -7, 2.8, Math.sin(wt) * 0.9, 1);
@@ -199,22 +259,46 @@ function drawEnemyShape(ctx, e, t, flash) {
       ctx.roundRect(-13, -19, 26, 13, 3);
       ctx.ellipse(0, 3, 15, 11, 0, 0, U.TAU);
     };
-    const pg = ctx.createLinearGradient(0, -19, 0, 14);
-    pg.addColorStop(0, '#f0f8fc');
-    pg.addColorStop(1, '#a8bcc8');
+    // porcelain lit from the upper left, falling into shade right + below
     body();
-    ctx.fillStyle = pg;
+    ctx.fillStyle = cgrad(ctx, 'porc', () => {
+      const g = ctx.createLinearGradient(-12, -19, 10, 14);
+      g.addColorStop(0, '#ffffff');
+      g.addColorStop(0.45, '#d8e6ee');
+      g.addColorStop(1, '#8aa2b2');
+      return g;
+    });
     ctx.fill();
     ctx.strokeStyle = 'rgba(140,180,200,0.9)';
     ctx.stroke();
+    // tank lid: lighter top face for boxy depth
+    ctx.fillStyle = '#fbffff';
+    ctx.beginPath();
+    ctx.roundRect(-13.6, -20.4, 27.2, 4.4, 2);
+    ctx.fill();
+    // specular streak down the tank
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillRect(-10, -15, 2.2, 8);
     // seat ring + dark bowl mouth with a charging loogie
     ctx.shadowBlur = 4;
-    ctx.strokeStyle = '#e8f4f8';
+    ctx.strokeStyle = cgrad(ctx, 'ring', () => {
+      const g = ctx.createLinearGradient(0, -5, 0, 9);
+      g.addColorStop(0, '#ffffff');
+      g.addColorStop(1, '#9ab2c0');
+      return g;
+    });
     ctx.lineWidth = 2.4;
     ctx.beginPath();
     ctx.ellipse(0, 2, 10.5, 6.5, 0, 0, U.TAU);
     ctx.stroke();
-    ctx.fillStyle = '#140e08';
+    // bowl interior with depth: walls catch a little light
+    ctx.fillStyle = cgrad(ctx, 'bowlin', () => {
+      const g = ctx.createRadialGradient(0, 2, 1, 0, 2, 8.5);
+      g.addColorStop(0, '#0a0604');
+      g.addColorStop(0.7, '#1c1208');
+      g.addColorStop(1, '#3c2c16');
+      return g;
+    });
     ctx.beginPath();
     ctx.ellipse(0, 2, 8.4, 4.8, 0, 0, U.TAU);
     ctx.fill();
@@ -245,25 +329,39 @@ function drawEnemyShape(ctx, e, t, flash) {
       ctx.fill();
     }
   } else if (e.type === 'splitter' || e.type === 'mite') {
-    // snot blob (and its booger children)
+    // snot blob (and its booger children): jiggly shaded sphere
     const r = e.type === 'mite' ? 8.5 : 15;
-    const gg = ctx.createLinearGradient(0, -r, 0, r);
-    gg.addColorStop(0, '#c8ff6e');
-    gg.addColorStop(1, '#4e9e1e');
     blobPath(ctx, r, wt * 1.6, 0.14);
-    ctx.fillStyle = gg;
+    ctx.fillStyle = cgrad(ctx, 'blob' + r, () => {
+      const g = ctx.createRadialGradient(-r * 0.38, -r * 0.42, r * 0.12, 0, 0, r * 1.15);
+      g.addColorStop(0, '#e8ffae');
+      g.addColorStop(0.45, '#8ad438');
+      g.addColorStop(1, '#2e6812');
+      return g;
+    });
     ctx.fill();
     ctx.strokeStyle = c;
     ctx.globalAlpha = 0.85;
     ctx.stroke();
     ctx.globalAlpha = 1;
     ctx.shadowBlur = 0;
-    // slimy gloss + dangling drip
-    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    // subsurface bounce light along the underside
+    ctx.strokeStyle = 'rgba(216,255,150,0.5)';
+    ctx.lineWidth = 1.8;
     ctx.beginPath();
-    ctx.ellipse(-r * 0.3, -r * 0.42, r * 0.32, r * 0.18, -0.5, 0, U.TAU);
+    ctx.arc(0, 0, r * 0.82, 0.5, Math.PI - 0.5);
+    ctx.stroke();
+    // slimy gloss + dangling drip
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.beginPath();
+    ctx.ellipse(-r * 0.34, -r * 0.46, r * 0.3, r * 0.15, -0.5, 0, U.TAU);
     ctx.fill();
-    ctx.fillStyle = '#6ec82e';
+    ctx.fillStyle = cgrad(ctx, 'drip' + r, () => {
+      const g = ctx.createRadialGradient(r * 0.2, r, 0.3, r * 0.25, r + 1, 3);
+      g.addColorStop(0, '#c4f47e');
+      g.addColorStop(1, '#4e9e1e');
+      return g;
+    });
     ctx.beginPath();
     ctx.ellipse(r * 0.25, r + Math.sin(wt * 3) * 1.5, 1.6, 2.8, 0, 0, U.TAU);
     ctx.fill();
@@ -279,27 +377,45 @@ function drawEnemyShape(ctx, e, t, flash) {
       ctx.fill();
     }
   } else {
-    // zombie pickle, very upset
+    // zombie pickle, very upset: shaded like a cylinder
     const body = () => {
       ctx.beginPath();
       ctx.ellipse(0, 0, 7.5, 14, 0, 0, U.TAU);
     };
-    const gg = ctx.createLinearGradient(-7, 0, 7, 0);
-    gg.addColorStop(0, '#3e8a22');
-    gg.addColorStop(0.5, '#6ed83e');
-    gg.addColorStop(1, '#3e8a22');
     body();
-    ctx.fillStyle = gg;
+    ctx.fillStyle = cgrad(ctx, 'pickle', () => {
+      const g = ctx.createLinearGradient(-7, 0, 7, 0);
+      g.addColorStop(0, '#2a6414');
+      g.addColorStop(0.3, '#8ae856');
+      g.addColorStop(0.55, '#54b830');
+      g.addColorStop(1, '#1e4a0e');
+      return g;
+    });
     ctx.fill();
     ctx.strokeStyle = c;
     ctx.stroke();
     ctx.shadowBlur = 0;
-    // warty bumps
-    ctx.fillStyle = 'rgba(30,90,14,0.8)';
+    // end-cap shading top and bottom
+    ctx.fillStyle = 'rgba(14,40,8,0.45)';
+    ctx.beginPath();
+    ctx.ellipse(0, 12, 6, 3.4, 0, 0, U.TAU);
+    ctx.fill();
+    // specular stripe down the lit flank
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.beginPath();
+    ctx.ellipse(-3.2, -2, 1.1, 9, 0.08, 0, U.TAU);
+    ctx.fill();
+    // warty bumps with their own little highlights
     for (let i = 0; i < 5; i++) {
       const a = e.ph * 2 + i * 2.4;
+      const bx = Math.sin(a) * 4.5, by = ((i / 4) - 0.5) * 20;
+      ctx.fillStyle = 'rgba(30,90,14,0.8)';
       ctx.beginPath();
-      ctx.arc(Math.sin(a) * 4.5, ((i / 4) - 0.5) * 20, 1.1, 0, U.TAU);
+      ctx.arc(bx, by, 1.1, 0, U.TAU);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(220,255,180,0.5)';
+      ctx.beginPath();
+      ctx.arc(bx - 0.4, by - 0.4, 0.4, 0, U.TAU);
       ctx.fill();
     }
     // angry eyes + stitched zigzag mouth
@@ -482,6 +598,7 @@ class Boss {
     const g = this.g, t = this.t;
     ctx.save();
     ctx.translate(this.x, this.y);
+    U.dropShadow(ctx, 70, 10, 48, 0.4);
     if (this.state === 'dying') {
       ctx.rotate(Math.sin(t * 14) * 0.04);
       ctx.globalAlpha = 0.85 + Math.sin(t * 40) * 0.15;
@@ -496,18 +613,25 @@ class Boss {
       ctx.ellipse(0, 10, 64, 34, 0, 0, U.TAU);
     };
 
-    // slimy tentacle arms, waving plungers
+    // slimy tentacle arms, waving plungers — dark core + lit ridge = cylinders
     ctx.lineCap = 'round';
     for (const s of [-1, 1]) {
       for (let i = 0; i < 3; i++) {
         const wave = Math.sin(t * 2.4 + i * 1.8 + s) * 12;
-        ctx.strokeStyle = i === 1 ? '#4e9e1e' : '#58c83a';
-        ctx.lineWidth = 7 - i * 1.5;
         ctx.shadowColor = '#8aff3a';
         ctx.shadowBlur = 6;
+        ctx.strokeStyle = '#2e6212';
+        ctx.lineWidth = 7 - i * 1.5;
         ctx.beginPath();
         ctx.moveTo(s * 40, 4 - i * 6);
         ctx.quadraticCurveTo(s * (66 + i * 8), -18 + wave, s * (88 + i * 6), -2 + wave + i * 10);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = '#7ade4a';
+        ctx.lineWidth = (7 - i * 1.5) * 0.45;
+        ctx.beginPath();
+        ctx.moveTo(s * 40, 2.6 - i * 6);
+        ctx.quadraticCurveTo(s * (66 + i * 8), -19.4 + wave, s * (88 + i * 6), -3.4 + wave + i * 10);
         ctx.stroke();
       }
       // plunger in the middle tentacle's grip
@@ -526,11 +650,11 @@ class Boss {
       ctx.fill();
     }
 
-    // porcelain tank with crown
-    const pg = ctx.createLinearGradient(0, -64, 0, 44);
-    pg.addColorStop(0, '#fdffff');
-    pg.addColorStop(0.55, '#d4e2ea');
-    pg.addColorStop(1, '#9ab2c0');
+    // porcelain tank with crown — lit upper-left, shaded lower-right
+    const pg = ctx.createLinearGradient(-50, -64, 40, 44);
+    pg.addColorStop(0, '#ffffff');
+    pg.addColorStop(0.5, '#d4e2ea');
+    pg.addColorStop(1, '#8aa2b2');
     ctx.shadowColor = '#bfe8ff';
     ctx.shadowBlur = 7;
     tankPath();
@@ -539,23 +663,55 @@ class Boss {
     ctx.strokeStyle = 'rgba(140,180,200,0.9)';
     ctx.lineWidth = 1.6;
     ctx.stroke();
-
     ctx.shadowBlur = 0;
-    ctx.fillStyle = '#ffd84d';
-    ctx.strokeStyle = '#b8902e';
+    // tank lid: a lighter top face
+    ctx.fillStyle = '#feffff';
     ctx.beginPath();
-    ctx.moveTo(-30, -64);
-    for (let i = 0; i < 5; i++) {
-      ctx.lineTo(-30 + i * 15 + 7.5, -82);
-      ctx.lineTo(-30 + (i + 1) * 15, -64);
-    }
-    ctx.closePath();
+    ctx.roundRect(-61, -67, 122, 9, 4);
     ctx.fill();
+    ctx.strokeStyle = 'rgba(140,180,200,0.7)';
     ctx.stroke();
-    ctx.fillStyle = '#c83a8e';
+    // long specular streak
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.beginPath();
+    ctx.roundRect(-48, -56, 7, 30, 3.5);
+    ctx.fill();
+
+    // crown: each spike faceted light/dark down the middle
     for (let i = 0; i < 5; i++) {
+      const x0 = -30 + i * 15, xm = x0 + 7.5, x1 = x0 + 15;
+      ctx.fillStyle = '#ffe27a';
       ctx.beginPath();
-      ctx.arc(-30 + i * 15 + 7.5, -74, 1.8, 0, U.TAU);
+      ctx.moveTo(x0, -67);
+      ctx.lineTo(xm, -85);
+      ctx.lineTo(xm, -67);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#cf9a2c';
+      ctx.beginPath();
+      ctx.moveTo(xm, -85);
+      ctx.lineTo(x1, -67);
+      ctx.lineTo(xm, -67);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.strokeStyle = '#8a6a1e';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-30, -67);
+    for (let i = 0; i < 5; i++) {
+      ctx.lineTo(-30 + i * 15 + 7.5, -85);
+      ctx.lineTo(-30 + (i + 1) * 15, -67);
+    }
+    ctx.stroke();
+    for (let i = 0; i < 5; i++) {
+      const jx = -30 + i * 15 + 7.5;
+      const jg = ctx.createRadialGradient(jx - 0.6, -77.6, 0.2, jx, -77, 2);
+      jg.addColorStop(0, '#ff9ed0');
+      jg.addColorStop(1, '#a02468');
+      ctx.fillStyle = jg;
+      ctx.beginPath();
+      ctx.arc(jx, -77, 1.8, 0, U.TAU);
       ctx.fill();
     }
 
@@ -589,20 +745,33 @@ class Boss {
     ctx.fillStyle = '#8a9aa8';
     ctx.fillRect(-52, -58, 10, 4);
 
-    // the bowl
+    // the bowl: hemisphere with its own lighting
     ctx.shadowColor = '#bfe8ff';
     ctx.shadowBlur = 7;
+    const bg2 = ctx.createRadialGradient(-22, -4, 4, 0, 12, 78);
+    bg2.addColorStop(0, '#ffffff');
+    bg2.addColorStop(0.5, '#cddde6');
+    bg2.addColorStop(1, '#7e96a6');
     bowlPath();
-    ctx.fillStyle = pg;
+    ctx.fillStyle = bg2;
     ctx.fill();
     ctx.strokeStyle = 'rgba(110,150,175,0.95)';
     ctx.lineWidth = 2;
     ctx.stroke();
     ctx.shadowBlur = 0;
-    ctx.strokeStyle = '#e8f4f8';
+    // seat ring with thickness: shaded ring + bright top arc
+    const ring2 = ctx.createLinearGradient(0, -15, 0, 27);
+    ring2.addColorStop(0, '#ffffff');
+    ring2.addColorStop(1, '#94acba');
+    ctx.strokeStyle = ring2;
     ctx.lineWidth = 5;
     ctx.beginPath();
     ctx.ellipse(0, 6, 46, 21, 0, 0, U.TAU);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.ellipse(0, 4.4, 46, 21, 0, Math.PI * 1.08, Math.PI * 1.92);
     ctx.stroke();
 
     // grime drips down the porcelain
@@ -617,7 +786,12 @@ class Boss {
     const ph2 = this.phase === 2;
     const core = ph2 ? '#ff8a3d' : '#8aff3a';
     const pulse = 0.6 + Math.sin(t * (ph2 ? 9 : 5)) * 0.3;
-    ctx.fillStyle = '#140e06';
+    // bowl mouth falls away into darkness, walls catching light at the rim
+    const mouth = ctx.createRadialGradient(0, 5, 2, 0, 5, 38);
+    mouth.addColorStop(0, '#060302');
+    mouth.addColorStop(0.72, '#180f06');
+    mouth.addColorStop(1, '#46341a');
+    ctx.fillStyle = mouth;
     ctx.beginPath();
     ctx.ellipse(0, 5, 38, 16, 0, 0, U.TAU);
     ctx.fill();

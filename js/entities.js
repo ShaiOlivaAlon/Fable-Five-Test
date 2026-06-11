@@ -143,7 +143,11 @@ class Player {
     ctx.save();
     ctx.globalAlpha = baseA;
     ctx.translate(this.x, this.y);
+    // elevation shadow cast onto the void below
+    U.dropShadow(ctx, 24, 7, 16, 0.35);
     ctx.rotate(this.tilt * 0.3);
+    // banking squash — the slice rolls in 3D as it strafes
+    ctx.scale(1 - Math.abs(this.tilt) * 0.16, 1);
 
     // rocket exhaust glow under the crust
     const fl = 1 + Math.sin(t * 40) * 0.25;
@@ -159,75 +163,111 @@ class Player {
     ctx.globalCompositeOperation = 'source-over';
 
     // pizza slice, tip up: cheesy triangle body
-    const slice = () => {
+    const slice = (oy = 0) => {
       ctx.beginPath();
-      ctx.moveTo(0, -28);
-      ctx.quadraticCurveTo(10, -8, 17, 12);
-      ctx.lineTo(-17, 12);
-      ctx.quadraticCurveTo(-10, -8, 0, -28);
+      ctx.moveTo(0, -28 + oy);
+      ctx.quadraticCurveTo(10, -8 + oy, 17, 12 + oy);
+      ctx.lineTo(-17, 12 + oy);
+      ctx.quadraticCurveTo(-10, -8 + oy, 0, -28 + oy);
       ctx.closePath();
     };
     ctx.shadowColor = '#ffb347';
     ctx.shadowBlur = 14;
-    const cheese = ctx.createLinearGradient(0, -28, 0, 12);
-    cheese.addColorStop(0, '#ffe89a');
-    cheese.addColorStop(0.6, '#ffd34d');
-    cheese.addColorStop(1, '#f0a83c');
+    // extruded underside: the slice has dough thickness
+    slice(3.2);
+    ctx.fillStyle = '#a06a28';
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    // top face, lit from the upper left
+    const cheese = ctx.createLinearGradient(-14, -26, 12, 12);
+    cheese.addColorStop(0, '#fff2b8');
+    cheese.addColorStop(0.45, '#ffd34d');
+    cheese.addColorStop(1, '#e89a2e');
     slice();
     ctx.fillStyle = cheese;
     ctx.fill();
     ctx.strokeStyle = 'rgba(200,120,40,0.9)';
     ctx.lineWidth = 1.4;
     ctx.stroke();
-
-    // crust booster at the bottom, bumpy like a real crust
-    ctx.shadowBlur = 8;
-    const crust = ctx.createLinearGradient(0, 10, 0, 22);
-    crust.addColorStop(0, '#d89a52');
-    crust.addColorStop(1, '#9a601e');
-    ctx.fillStyle = crust;
+    // greasy sheen down the left edge
+    ctx.globalAlpha = baseA * 0.4;
+    ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.moveTo(-18, 11);
-    ctx.arc(-9, 14, 6.4, Math.PI, 0, true);
-    ctx.arc(0, 15, 6.4, Math.PI, 0, true);
-    ctx.arc(9, 14, 6.4, Math.PI, 0, true);
-    ctx.lineTo(18, 11);
+    ctx.moveTo(-1, -25);
+    ctx.quadraticCurveTo(-8, -8, -13, 8);
+    ctx.quadraticCurveTo(-9, -6, -3.5, -22);
     ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = baseA;
+
+    // crust booster at the bottom: shaded side first, lit roll on top
+    const crustBumps = (oy) => {
+      ctx.beginPath();
+      ctx.moveTo(-18, 11 + oy);
+      ctx.arc(-9, 14 + oy, 6.4, Math.PI, 0, true);
+      ctx.arc(0, 15 + oy, 6.4, Math.PI, 0, true);
+      ctx.arc(9, 14 + oy, 6.4, Math.PI, 0, true);
+      ctx.lineTo(18, 11 + oy);
+      ctx.closePath();
+    };
+    crustBumps(3);
+    ctx.fillStyle = '#6e4012';
+    ctx.fill();
+    const crust = ctx.createLinearGradient(-12, 8, 8, 22);
+    crust.addColorStop(0, '#f0bc7a');
+    crust.addColorStop(0.5, '#cd8c42');
+    crust.addColorStop(1, '#94591a');
+    crustBumps(0);
+    ctx.fillStyle = crust;
     ctx.fill();
     ctx.strokeStyle = 'rgba(120,70,20,0.8)';
     ctx.lineWidth = 1.2;
     ctx.stroke();
 
     // melty cheese drips along the edges
-    ctx.fillStyle = '#ffd34d';
     for (const [dx, dy, dr] of [[-12.5, 9, 2.4], [13.5, 6, 2], [-7, -6, 1.7]]) {
+      const dg = ctx.createRadialGradient(dx - dr * 0.4, dy - dr * 0.6, 0, dx, dy, dr * 1.6);
+      dg.addColorStop(0, '#fff0b0');
+      dg.addColorStop(1, '#eda93c');
+      ctx.fillStyle = dg;
       ctx.beginPath();
       ctx.ellipse(dx, dy + Math.sin(t * 4 + dx) * 0.7, dr * 0.8, dr * 1.5, 0, 0, U.TAU);
       ctx.fill();
     }
 
-    // pepperoni armor
+    // pepperoni armor: little shaded domes
     for (const [px2, py2, pr] of [[0, -8, 3.2], [-7, 4, 2.8], [8, 3, 2.6]]) {
-      const pg = ctx.createRadialGradient(px2 - 1, py2 - 1, 0, px2, py2, pr);
-      pg.addColorStop(0, '#e85a4a');
-      pg.addColorStop(1, '#a02a22');
+      const pg = ctx.createRadialGradient(px2 - pr * 0.45, py2 - pr * 0.5, 0, px2, py2, pr);
+      pg.addColorStop(0, '#ff8a72');
+      pg.addColorStop(0.55, '#d84436');
+      pg.addColorStop(1, '#8a1e18');
       ctx.fillStyle = pg;
       ctx.beginPath();
       ctx.arc(px2, py2, pr, 0, U.TAU);
       ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.beginPath();
+      ctx.arc(px2 - pr * 0.35, py2 - pr * 0.4, pr * 0.22, 0, U.TAU);
+      ctx.fill();
     }
 
     // googly eyes near the tip, tracking the strafe
-    ctx.shadowBlur = 4;
-    ctx.shadowColor = '#fff';
     for (const s of [-1, 1]) {
-      ctx.fillStyle = '#ffffff';
+      const eg2 = ctx.createRadialGradient(s * 4.2 - 1, -17, 0.4, s * 4.2, -16, 3.2);
+      eg2.addColorStop(0, '#ffffff');
+      eg2.addColorStop(0.7, '#f0ece0');
+      eg2.addColorStop(1, '#b8b09a');
+      ctx.fillStyle = eg2;
       ctx.beginPath();
       ctx.arc(s * 4.2, -16, 3, 0, U.TAU);
       ctx.fill();
       ctx.fillStyle = '#1a1208';
       ctx.beginPath();
       ctx.arc(s * 4.2 + this.tilt * 1.6, -16.6, 1.4, 0, U.TAU);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.beginPath();
+      ctx.arc(s * 4.2 + this.tilt * 1.6 - 0.5, -17.2, 0.45, 0, U.TAU);
       ctx.fill();
     }
 
@@ -310,6 +350,7 @@ class PowerUp {
     const b = BOOSTS[this.kind];
     ctx.save();
     ctx.translate(this.x, this.y);
+    U.dropShadow(ctx, 14, 4, 11, 0.32);
     const pulse = 1 + Math.sin(this.t * 5) * 0.08;
     ctx.scale(pulse, pulse);
     ctx.rotate(Math.sin(this.t * 1.8) * 0.25);
@@ -317,11 +358,25 @@ class PowerUp {
     ctx.shadowBlur = 16;
     ctx.strokeStyle = b.color;
     ctx.lineWidth = 2;
-    ctx.fillStyle = 'rgba(18,8,30,0.85)';
+    // glassy goo orb: lit interior, dark depths
+    const og = ctx.createRadialGradient(-5, -6, 1, 0, 0, 16);
+    og.addColorStop(0, 'rgba(255,255,255,0.22)');
+    og.addColorStop(0.35, 'rgba(70,40,100,0.65)');
+    og.addColorStop(1, 'rgba(12,5,22,0.92)');
+    ctx.fillStyle = og;
     blobPath(ctx, 14, this.t);
     ctx.fill();
     ctx.stroke();
+    ctx.shadowBlur = 0;
+    // glass gloss crescent
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.ellipse(-4.5, -7, 5.5, 2.6, -0.55, 0, U.TAU);
+    ctx.fill();
     ctx.globalAlpha = 0.4;
+    ctx.shadowColor = b.color;
+    ctx.shadowBlur = 16;
     ctx.lineWidth = 1;
     blobPath(ctx, 9.5, this.t + 1.3, 0.16);
     ctx.stroke();
@@ -352,27 +407,27 @@ function drawBullet(ctx, b) {
   if (b.type === 'pulse') {
     // flying cheese glob with a melty tail
     ctx.drawImage(U.glow('#ffb347'), -9, -12, 18, 18);
-    ctx.fillStyle = '#ffe27a';
-    ctx.beginPath();
-    ctx.ellipse(0, -3, 3.4, 5.4, 0, 0, U.TAU);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(0, 4, 1.8, 2.8, 0, 0, U.TAU);
-    ctx.fill();
+    ctx.drawImage(U.sphere('#ffd34d'), -3.6, -8.8, 7.2, 11.2);
+    ctx.drawImage(U.sphere('#ffd34d'), -1.9, 1.2, 3.8, 5.6);
   } else if (b.type === 'scatter') {
-    // candy sprinkle
+    // candy sprinkle: tiny shaded cylinder
     ctx.drawImage(U.glow('#ff4dd8'), -9, -9, 18, 18);
-    ctx.fillStyle = `hsl(${b.hue},90%,68%)`;
+    ctx.fillStyle = `hsl(${b.hue},90%,62%)`;
     ctx.beginPath();
     ctx.roundRect(-1.9, -5.5, 3.8, 11, 1.9);
+    ctx.fill();
+    ctx.fillStyle = `hsl(${b.hue},95%,84%)`;
+    ctx.beginPath();
+    ctx.roundRect(-1.5, -5, 1.4, 10, 0.7);
     ctx.fill();
   } else if (b.type === 'missile') {
     // homing anchovy, nose first, tail flapping
     ctx.drawImage(U.glow('#7df9ff'), -8, 0, 16, 16);
     const fg = ctx.createLinearGradient(-4, 0, 4, 0);
-    fg.addColorStop(0, '#88aebc');
-    fg.addColorStop(0.5, '#cfe8f0');
-    fg.addColorStop(1, '#88aebc');
+    fg.addColorStop(0, '#5a7e8c');
+    fg.addColorStop(0.32, '#e8f8ff');
+    fg.addColorStop(0.6, '#9cc2d0');
+    fg.addColorStop(1, '#48667a');
     ctx.fillStyle = fg;
     ctx.beginPath();
     ctx.ellipse(0, -1, 3.6, 8.5, 0, 0, U.TAU);
@@ -383,6 +438,11 @@ function drawBullet(ctx, b) {
     ctx.lineTo(3.5 + flap, 12);
     ctx.lineTo(-3.5 - flap, 12);
     ctx.closePath();
+    ctx.fill();
+    // wet glint along the flank
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.beginPath();
+    ctx.ellipse(-1.2, -3.5, 0.7, 3.4, 0.1, 0, U.TAU);
     ctx.fill();
     ctx.fillStyle = '#0a1418';
     ctx.beginPath();
@@ -398,9 +458,8 @@ function drawEnemyBullet(ctx, b, t) {
   const col = b.type === 'orb2' ? '#c9803a' : '#8aff3a';
   const r = (b.r + 4) * (1.6 + Math.sin(t * 20) * 0.12);
   ctx.drawImage(U.glow(col), b.x - r, b.y - r, r * 2, r * 2);
-  ctx.fillStyle = b.type === 'orb2' ? '#e8c89a' : '#e4ffc0';
-  ctx.beginPath();
-  ctx.arc(b.x, b.y, b.r * 0.55, 0, U.TAU);
-  ctx.fill();
   ctx.globalCompositeOperation = 'source-over';
+  // glossy wet glob with built-in sphere shading
+  const r2 = b.r * 1.15;
+  ctx.drawImage(U.sphere(b.type === 'orb2' ? '#a06a30' : '#6ed02e'), b.x - r2, b.y - r2, r2 * 2, r2 * 2);
 }

@@ -175,6 +175,21 @@ const BG = {
     x.beginPath();
     x.arc(lx - r * 0.1, ly - r * 0.12, r * 0.07, 0, U.TAU);
     x.fill();
+    // planet shading: dark terminator on the far side of the key light
+    const term = x.createRadialGradient(ex - r * 0.45, ey - r * 0.45, r * 0.2, ex - r * 0.3, ey - r * 0.3, r * 1.5);
+    term.addColorStop(0, 'rgba(0,0,0,0)');
+    term.addColorStop(0.62, 'rgba(0,0,0,0)');
+    term.addColorStop(1, 'rgba(8,2,14,0.75)');
+    x.fillStyle = term;
+    x.beginPath();
+    x.arc(ex, ey, r, 0, U.TAU);
+    x.fill();
+    // thin atmospheric rim catching the light
+    x.strokeStyle = `hsla(${hue},80%,70%,0.35)`;
+    x.lineWidth = Math.max(0.8, r * 0.05);
+    x.beginPath();
+    x.arc(ex, ey, r * 1.02, Math.PI * 0.8, Math.PI * 1.7);
+    x.stroke();
   },
 
   update(dt) {
