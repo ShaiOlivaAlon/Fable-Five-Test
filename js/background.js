@@ -217,6 +217,7 @@ const BG = {
     if (Assets.ok('bg')) {
       const img = Assets.imgs.bg;
       const dw = LW, dh = LW * (img.naturalHeight / img.naturalWidth);
+      ctx.imageSmoothingEnabled = true;
       let y = (this.layers[0].y * 1.4) % dh;
       for (let yy = y - dh; yy < LH; yy += dh) ctx.drawImage(img, 0, yy, dw, dh);
       // drifting haze + slime drips still overlay on top

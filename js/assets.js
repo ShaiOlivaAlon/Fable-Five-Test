@@ -33,6 +33,7 @@ const Assets = {
   },
 
   imgs: {},
+  ready: {},
   done: false,
 
   load(cb) {
@@ -42,19 +43,61 @@ const Assets = {
     for (const name of names) {
       const img = new Image();
       img.decoding = 'async';
-      img.onload = img.onerror = () => {
+      img.onload = () => {
+        // sprite sheets ship on solid white; key it out (edge flood-fill so
+        // white *inside* outlined sprites is kept). The background image is
+        // full-bleed and left untouched.
+        this.imgs[name] = name === 'bg' ? img : keyOutWhiteBg(img);
+        this.ready[name] = true;
         if (--left === 0) { this.done = true; cb && cb(); }
       };
+      img.onerror = () => { if (--left === 0) { this.done = true; cb && cb(); } };
       img.src = this.SHEETS[name];
       this.imgs[name] = img;
     }
   },
 
   ok(name) {
-    const img = this.imgs[name];
-    return !!(img && img.complete && img.naturalWidth > 1);
+    return !!this.ready[name];
   },
 };
+
+/* Make the white sheet background transparent by flood-filling white inward
+   from all four edges, stopping at the sprites' dark outlines. Runs once per
+   sheet at load. Returns a canvas usable as a drawImage source. */
+function keyOutWhiteBg(img) {
+  const w = img.naturalWidth, h = img.naturalHeight;
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const x = c.getContext('2d');
+  x.drawImage(img, 0, 0);
+  let id;
+  try { id = x.getImageData(0, 0, w, h); } catch (e) { return c; } // tainted: skip
+  const d = id.data, n = w * h;
+  if (d[3] === 0) return c; // already has a transparent background (baked) — skip
+  const white = i => d[i * 4] > 236 && d[i * 4 + 1] > 236 && d[i * 4 + 2] > 236;
+  const seen = new Uint8Array(n);
+  const stack = [];
+  for (let px = 0; px < w; px++) { stack.push(px, px + (h - 1) * w); }
+  for (let py = 0; py < h; py++) { stack.push(py * w, py * w + (w - 1)); }
+  while (stack.length) {
+    const i = stack.pop();
+    if (seen[i]) continue;
+    seen[i] = 1;
+    if (!white(i)) continue;
+    d[i * 4 + 3] = 0;
+    const px = i % w, py = (i / w) | 0;
+    if (px > 0) stack.push(i - 1);
+    if (px < w - 1) stack.push(i + 1);
+    if (py > 0) stack.push(i - w);
+    if (py < h - 1) stack.push(i + w);
+  }
+  x.putImageData(id, 0, 0);
+  return c;
+}
+
+function sheetW(im) { return im.naturalWidth || im.width; }
+function sheetH(im) { return im.naturalHeight || im.height; }
 
 /* Per-sprite frame table. Each entry:
      sheet : which SHEETS image
@@ -69,28 +112,27 @@ const FRAMES = {
   //      row1 [burger][PIZZA=player][pickle]  row2 [banana][trashbag][condom]
   //      row3 [toilet][cheese][meatball]      row4 [donuts][chef][virus]
   //      row5 = BOSSES (7 across). Values are visual estimates — calibrate. ----
-  player:        { sheet: 'enemies', fx: 0.35,  fy: 0.01, fw: 0.060, fh: 0.18, n: 5, fps: 10, h: 60 },
-  enemy_drone:   { sheet: 'enemies', fx: 0.01,  fy: 0.01, fw: 0.062, fh: 0.18, n: 5, fps: 8,  h: 34 }, // burger
-  enemy_sentry:  { sheet: 'enemies', fx: 0.01,  fy: 0.41, fw: 0.062, fh: 0.18, n: 5, fps: 6,  h: 42 }, // toilet cannon
-  enemy_splitter:{ sheet: 'enemies', fx: 0.68,  fy: 0.41, fw: 0.080, fh: 0.18, n: 4, fps: 8,  h: 34 }, // meatball
-  enemy_mite:    { sheet: 'enemies', fx: 0.68,  fy: 0.60, fw: 0.080, fh: 0.18, n: 4, fps: 10, h: 20 }, // virus
-  enemy_diver:   { sheet: 'enemies', fx: 0.005, fy: 0.21, fw: 0.052, fh: 0.18, n: 6, fps: 12, h: 30 }, // banana
-  boss:          { sheet: 'enemies', fx: 0.43,  fy: 0.79, fw: 0.135, fh: 0.205, n: 1, fps: 0, h: 220 }, // toilet king
+  player:        { sheet: 'enemies', fx: 0.335, fy: 0.01, fw: 0.058, fh: 0.18, n: 5, fps: 10, h: 88 },
+  enemy_drone:   { sheet: 'enemies', fx: 0.01,  fy: 0.01, fw: 0.062, fh: 0.18, n: 5, fps: 8,  h: 50 }, // burger
+  enemy_sentry:  { sheet: 'enemies', fx: 0.01,  fy: 0.41, fw: 0.062, fh: 0.18, n: 5, fps: 6,  h: 56 }, // toilet cannon
+  enemy_splitter:{ sheet: 'enemies', fx: 0.68,  fy: 0.41, fw: 0.080, fh: 0.18, n: 4, fps: 8,  h: 50 }, // meatball
+  enemy_mite:    { sheet: 'enemies', fx: 0.68,  fy: 0.60, fw: 0.080, fh: 0.18, n: 4, fps: 10, h: 30 }, // virus
+  enemy_diver:   { sheet: 'enemies', fx: 0.005, fy: 0.21, fw: 0.052, fh: 0.18, n: 6, fps: 12, h: 44 }, // banana
+  boss:          { sheet: 'enemies', fx: 0.43,  fy: 0.78, fw: 0.14, fh: 0.215, n: 1, fps: 0, h: 250 }, // toilet king
 
   // ---- projectiles.png ----
-  bullet_pulse:  { sheet: 'projectiles', fx: 0.0,   fy: 0.04, fw: 0.072, fh: 0.16,  n: 5, fps: 14, h: 24 }, // pizza slices
-  bullet_scatter:{ sheet: 'projectiles', fx: 0.355, fy: 0.30, fw: 0.063, fh: 0.115, n: 4, fps: 14, h: 14 }, // slime balls
-  bullet_missile:{ sheet: 'projectiles', fx: 0.92,  fy: 0.80, fw: 0.07,  fh: 0.12,  n: 1, fps: 0,  h: 18 }, // fish
+  bullet_pulse:  { sheet: 'projectiles', fx: 0.0,   fy: 0.04, fw: 0.072, fh: 0.16,  n: 5, fps: 14, h: 30 }, // pizza slices
+  bullet_scatter:{ sheet: 'projectiles', fx: 0.355, fy: 0.30, fw: 0.063, fh: 0.115, n: 4, fps: 14, h: 20 }, // slime balls
+  bullet_missile:{ sheet: 'projectiles', fx: 0.92,  fy: 0.80, fw: 0.07,  fh: 0.12,  n: 1, fps: 0,  h: 24 }, // fish
 
-  // ---- ui.png (Sheet 05) : bubbled power-up icons, 3 rows x 5 cols, top-right.
-  //      r1 [pickle][TP][pizza][battery][donut]  r2 [sock][plunger][hotsauce][banana][spray] ----
-  pick_scatter:  { sheet: 'ui', fx: 0.895, fy: 0.052, fw: 0.075, fh: 0.052, n: 1, fps: 0, h: 30 }, // donut
-  pick_repair:   { sheet: 'ui', fx: 0.705, fy: 0.052, fw: 0.075, fh: 0.052, n: 1, fps: 0, h: 30 }, // pizza
-  pick_mult:     { sheet: 'ui', fx: 0.800, fy: 0.052, fw: 0.075, fh: 0.052, n: 1, fps: 0, h: 30 }, // battery
-  pick_shield:   { sheet: 'ui', fx: 0.895, fy: 0.122, fw: 0.075, fh: 0.052, n: 1, fps: 0, h: 30 }, // spray
-  pick_over:     { sheet: 'ui', fx: 0.705, fy: 0.122, fw: 0.075, fh: 0.052, n: 1, fps: 0, h: 30 }, // hot sauce
-  pick_beam:     { sheet: 'ui', fx: 0.610, fy: 0.122, fw: 0.075, fh: 0.052, n: 1, fps: 0, h: 30 }, // plunger
-  pick_missile:  { sheet: 'ui', fx: 0.800, fy: 0.122, fw: 0.075, fh: 0.052, n: 1, fps: 0, h: 30 }, // banana
+  // ---- items.png : icon row (pizza slice, TP roll, detergent pod, battery, sponge) ----
+  pick_scatter:  { sheet: 'items', fx: 0.012, fy: 0.66, fw: 0.085, fh: 0.135, n: 1, fps: 0, h: 38 }, // pizza slice
+  pick_shield:   { sheet: 'items', fx: 0.123, fy: 0.66, fw: 0.085, fh: 0.135, n: 1, fps: 0, h: 38 }, // TP roll
+  pick_mult:     { sheet: 'items', fx: 0.233, fy: 0.66, fw: 0.085, fh: 0.135, n: 1, fps: 0, h: 38 }, // pod
+  pick_over:     { sheet: 'items', fx: 0.345, fy: 0.66, fw: 0.085, fh: 0.135, n: 1, fps: 0, h: 38 }, // battery
+  pick_repair:   { sheet: 'items', fx: 0.455, fy: 0.66, fw: 0.085, fh: 0.135, n: 1, fps: 0, h: 38 }, // sponge
+  pick_beam:     { sheet: 'items', fx: 0.345, fy: 0.66, fw: 0.085, fh: 0.135, n: 1, fps: 0, h: 38 }, // battery
+  pick_missile:  { sheet: 'items', fx: 0.012, fy: 0.66, fw: 0.085, fh: 0.135, n: 1, fps: 0, h: 38 }, // pizza slice
 };
 
 /* Sprite blitter. Call inside a transform already translated to the entity's
@@ -110,7 +152,7 @@ const SPR = {
     const f = FRAMES[key];
     if (!f || !Assets.ok(f.sheet)) return false;
     const img = Assets.imgs[f.sheet];
-    const W = img.naturalWidth, H = img.naturalHeight;
+    const W = sheetW(img), H = sheetH(img);
     const sw = f.fw * W, sh = f.fh * H;
     const frame = f.fps > 0 ? (Math.floor(t * f.fps) % f.n) : 0;
     const sx = f.fx * W + frame * sw, sy = f.fy * H;
