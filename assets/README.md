@@ -12,7 +12,18 @@ game always runs whether or not these files are present.
 | `creatures.png` | the **ENEMY CREATURES** sheet — pickle jars, trash bags, condom saucers, cheese cones, dirty toilets, TV-dinner trays, meatballs, hood ghouls, blobs, projectile-creatures, skull clouds, bat-winged trash-can boss |
 | `projectiles.png` | the **PROJECTILES** sheet — pizza slices, TP rolls, sponges, slime blobs, green/purple beams, splat impacts, trails |
 | `enemies.png` | the animated enemy strips (burger / pizza / pickle / banana / bag / condom / toilet / cheese / meatball / donut / chef / virus) + the **BOSSES** row |
+| `ui.png` | **Sheet 05** — animated hearts, bubbled power-up icons, slime score-number font, bars/meters, buttons, warning panels, popup windows, misc icons, and explosion/pop effect frames |
 | `bg.png` | the tall vertical psychedelic background |
+
+## In-game mapping (current best-guess crops)
+
+- **player** → pizza-slice rocket (enemies.png, row 1 middle, 5 frames)
+- **drone** → burger · **sentry** → toilet cannon · **splitter** → meatball ·
+  **mite** → virus blob · **diver** → banana (all enemies.png strips)
+- **boss** → the crowned Toilet King (enemies.png BOSSES row)
+- **bullets** → pizza slices / slime balls / fish (projectiles.png)
+- **pickups** → bubbled power-up icons on ui.png: scatter=donut, repair=pizza,
+  ×2=battery, shield=spray, overdrive=hot-sauce, beam=plunger, missile=banana
 
 ## How the engine uses them
 

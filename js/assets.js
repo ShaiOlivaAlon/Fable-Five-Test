@@ -28,6 +28,7 @@ const Assets = {
     creatures: 'assets/creatures.png',
     projectiles: 'assets/projectiles.png',
     enemies: 'assets/enemies.png',
+    ui: 'assets/ui.png',
     bg: 'assets/bg.png',
   },
 
@@ -64,32 +65,32 @@ const Assets = {
      h     : desired on-screen height in world units (width follows aspect)
    Coordinates are best-guess from the reference sheets — calibrate here. */
 const FRAMES = {
-  // player — pizza-slice rocket strip (enemies.png "pizza ships" row)
-  player:        { sheet: 'enemies', fx: 0.34, fy: 0.02, fw: 0.066, fh: 0.165, n: 5, fps: 10, h: 60 },
+  // ---- enemies.png : the animated-strip sheet, read as 3 column-groups x 5 rows.
+  //      row1 [burger][PIZZA=player][pickle]  row2 [banana][trashbag][condom]
+  //      row3 [toilet][cheese][meatball]      row4 [donuts][chef][virus]
+  //      row5 = BOSSES (7 across). Values are visual estimates — calibrate. ----
+  player:        { sheet: 'enemies', fx: 0.35,  fy: 0.01, fw: 0.060, fh: 0.18, n: 5, fps: 10, h: 60 },
+  enemy_drone:   { sheet: 'enemies', fx: 0.01,  fy: 0.01, fw: 0.062, fh: 0.18, n: 5, fps: 8,  h: 34 }, // burger
+  enemy_sentry:  { sheet: 'enemies', fx: 0.01,  fy: 0.41, fw: 0.062, fh: 0.18, n: 5, fps: 6,  h: 42 }, // toilet cannon
+  enemy_splitter:{ sheet: 'enemies', fx: 0.68,  fy: 0.41, fw: 0.080, fh: 0.18, n: 4, fps: 8,  h: 34 }, // meatball
+  enemy_mite:    { sheet: 'enemies', fx: 0.68,  fy: 0.60, fw: 0.080, fh: 0.18, n: 4, fps: 10, h: 20 }, // virus
+  enemy_diver:   { sheet: 'enemies', fx: 0.005, fy: 0.21, fw: 0.052, fh: 0.18, n: 6, fps: 12, h: 30 }, // banana
+  boss:          { sheet: 'enemies', fx: 0.43,  fy: 0.79, fw: 0.135, fh: 0.205, n: 1, fps: 0, h: 220 }, // toilet king
 
-  // enemies (enemies.png animated strips)
-  enemy_drone:   { sheet: 'enemies', fx: 0.66, fy: 0.205, fw: 0.066, fh: 0.165, n: 5, fps: 8, h: 32 }, // pickle row stand-in
-  enemy_sentry:  { sheet: 'enemies', fx: 0.0,  fy: 0.40,  fw: 0.083, fh: 0.165, n: 5, fps: 6, h: 40 }, // toilet cannons
-  enemy_splitter:{ sheet: 'enemies', fx: 0.34, fy: 0.595, fw: 0.083, fh: 0.165, n: 4, fps: 8, h: 34 }, // chef blobs
-  enemy_mite:    { sheet: 'enemies', fx: 0.34, fy: 0.595, fw: 0.083, fh: 0.165, n: 4, fps: 8, h: 20 },
-  enemy_diver:   { sheet: 'enemies', fx: 0.66, fy: 0.205, fw: 0.066, fh: 0.165, n: 5, fps: 12, h: 28 }, // pickle row
+  // ---- projectiles.png ----
+  bullet_pulse:  { sheet: 'projectiles', fx: 0.0,   fy: 0.04, fw: 0.072, fh: 0.16,  n: 5, fps: 14, h: 24 }, // pizza slices
+  bullet_scatter:{ sheet: 'projectiles', fx: 0.355, fy: 0.30, fw: 0.063, fh: 0.115, n: 4, fps: 14, h: 14 }, // slime balls
+  bullet_missile:{ sheet: 'projectiles', fx: 0.92,  fy: 0.80, fw: 0.07,  fh: 0.12,  n: 1, fps: 0,  h: 18 }, // fish
 
-  // boss — Toilet Overlord (enemies.png BOSSES row, the crowned toilet king)
-  boss:          { sheet: 'enemies', fx: 0.43, fy: 0.79,  fw: 0.14,  fh: 0.205, n: 1, fps: 0, h: 220 },
-
-  // player projectiles (projectiles.png)
-  bullet_pulse:  { sheet: 'projectiles', fx: 0.0,  fy: 0.02, fw: 0.07, fh: 0.13, n: 5, fps: 14, h: 22 }, // pizza slices
-  bullet_scatter:{ sheet: 'projectiles', fx: 0.36, fy: 0.30, fw: 0.05, fh: 0.10, n: 4, fps: 14, h: 14 }, // slime balls
-  bullet_missile:{ sheet: 'projectiles', fx: 0.94, fy: 0.82, fw: 0.05, fh: 0.10, n: 1, fps: 0,  h: 18 }, // little fish
-
-  // boosts / pickups (items.png icon row)
-  pick_shield:   { sheet: 'items', fx: 0.13, fy: 0.66, fw: 0.07, fh: 0.12, n: 1, fps: 0, h: 28 }, // TP roll
-  pick_over:     { sheet: 'items', fx: 0.30, fy: 0.66, fw: 0.07, fh: 0.12, n: 1, fps: 0, h: 28 }, // detergent pod
-  pick_mult:     { sheet: 'items', fx: 0.47, fy: 0.66, fw: 0.06, fh: 0.12, n: 1, fps: 0, h: 28 }, // battery
-  pick_repair:   { sheet: 'items', fx: 0.62, fy: 0.66, fw: 0.07, fh: 0.12, n: 1, fps: 0, h: 28 }, // sponge
-  pick_scatter:  { sheet: 'items', fx: 0.0,  fy: 0.66, fw: 0.07, fh: 0.12, n: 1, fps: 0, h: 28 }, // pizza slice
-  pick_beam:     { sheet: 'items', fx: 0.62, fy: 0.66, fw: 0.07, fh: 0.12, n: 1, fps: 0, h: 28 },
-  pick_missile:  { sheet: 'items', fx: 0.30, fy: 0.66, fw: 0.07, fh: 0.12, n: 1, fps: 0, h: 28 },
+  // ---- ui.png (Sheet 05) : bubbled power-up icons, 3 rows x 5 cols, top-right.
+  //      r1 [pickle][TP][pizza][battery][donut]  r2 [sock][plunger][hotsauce][banana][spray] ----
+  pick_scatter:  { sheet: 'ui', fx: 0.895, fy: 0.052, fw: 0.075, fh: 0.052, n: 1, fps: 0, h: 30 }, // donut
+  pick_repair:   { sheet: 'ui', fx: 0.705, fy: 0.052, fw: 0.075, fh: 0.052, n: 1, fps: 0, h: 30 }, // pizza
+  pick_mult:     { sheet: 'ui', fx: 0.800, fy: 0.052, fw: 0.075, fh: 0.052, n: 1, fps: 0, h: 30 }, // battery
+  pick_shield:   { sheet: 'ui', fx: 0.895, fy: 0.122, fw: 0.075, fh: 0.052, n: 1, fps: 0, h: 30 }, // spray
+  pick_over:     { sheet: 'ui', fx: 0.705, fy: 0.122, fw: 0.075, fh: 0.052, n: 1, fps: 0, h: 30 }, // hot sauce
+  pick_beam:     { sheet: 'ui', fx: 0.610, fy: 0.122, fw: 0.075, fh: 0.052, n: 1, fps: 0, h: 30 }, // plunger
+  pick_missile:  { sheet: 'ui', fx: 0.800, fy: 0.122, fw: 0.075, fh: 0.052, n: 1, fps: 0, h: 30 }, // banana
 };
 
 /* Sprite blitter. Call inside a transform already translated to the entity's
