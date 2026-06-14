@@ -213,6 +213,28 @@ const BG = {
     ctx.fillStyle = '#0e0318';
     ctx.fillRect(-40, -40, LW + 80, LH + 80);
 
+    // painted background scrolls vertically when its image is present
+    if (Assets.ok('bg')) {
+      const img = Assets.imgs.bg;
+      const dw = LW, dh = LW * (img.naturalHeight / img.naturalWidth);
+      let y = (this.layers[0].y * 1.4) % dh;
+      for (let yy = y - dh; yy < LH; yy += dh) ctx.drawImage(img, 0, yy, dw, dh);
+      // drifting haze + slime drips still overlay on top
+      ctx.globalCompositeOperation = 'lighter';
+      for (const d of this.drips) {
+        ctx.strokeStyle = d.color;
+        ctx.lineWidth = 1.6;
+        ctx.globalAlpha = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(d.x, d.y);
+        ctx.lineTo(d.x, d.y - d.len);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+      return;
+    }
+
     for (const L of this.layers) {
       ctx.globalAlpha = L.alpha;
       const y0 = (L.y % L.h) - L.h;

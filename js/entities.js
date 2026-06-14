@@ -162,6 +162,30 @@ class Player {
     ctx.fill();
     ctx.globalCompositeOperation = 'source-over';
 
+    // painted sprite takes over the hull if its sheet is loaded
+    if (SPR.local(ctx, 'player', t)) {
+      ctx.restore();
+      // overdrive aura + shield still drawn over the sprite below
+      if (this.over > 0) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.translate(this.x, this.y);
+        ctx.globalAlpha = baseA * (0.45 + Math.sin(t * 18) * 0.18);
+        ctx.strokeStyle = '#ff5e3a';
+        ctx.shadowColor = '#ff5e3a';
+        ctx.shadowBlur = 16;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 26, 32, 0, 0, U.TAU);
+        ctx.stroke();
+        ctx.restore();
+      }
+      this.drawShield(ctx, t, baseA);
+      ctx.globalAlpha = 1;
+      ctx.shadowBlur = 0;
+      return;
+    }
+
     // pizza slice, tip up: cheesy triangle body
     const slice = (oy = 0) => {
       ctx.beginPath();
@@ -286,33 +310,35 @@ class Player {
     }
     ctx.restore();
 
-    // bubble-gum shield
-    if (this.shield > 0) {
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.translate(this.x, this.y);
-      ctx.rotate(t * 0.8);
-      ctx.globalAlpha = 0.55 + Math.sin(t * 6) * 0.15;
-      ctx.strokeStyle = '#ff8ad8';
-      ctx.shadowColor = '#ff8ad8';
-      ctx.shadowBlur = 12;
-      ctx.lineWidth = 1.6;
-      ctx.setLineDash([10, 6]);
-      ctx.beginPath();
-      ctx.arc(0, 0, 34, 0, U.TAU);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      const sg = ctx.createRadialGradient(0, 0, 20, 0, 0, 34);
-      sg.addColorStop(0, 'rgba(255,138,216,0)');
-      sg.addColorStop(1, 'rgba(255,138,216,0.16)');
-      ctx.fillStyle = sg;
-      ctx.beginPath();
-      ctx.arc(0, 0, 34, 0, U.TAU);
-      ctx.fill();
-      ctx.restore();
-    }
+    this.drawShield(ctx, t, baseA);
     ctx.globalAlpha = 1;
     ctx.shadowBlur = 0;
+  }
+
+  drawShield(ctx, t, baseA) {
+    if (this.shield <= 0) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.translate(this.x, this.y);
+    ctx.rotate(t * 0.8);
+    ctx.globalAlpha = (baseA || 1) * (0.55 + Math.sin(t * 6) * 0.15);
+    ctx.strokeStyle = '#ff8ad8';
+    ctx.shadowColor = '#ff8ad8';
+    ctx.shadowBlur = 12;
+    ctx.lineWidth = 1.6;
+    ctx.setLineDash([10, 6]);
+    ctx.beginPath();
+    ctx.arc(0, 0, 34, 0, U.TAU);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    const sg = ctx.createRadialGradient(0, 0, 20, 0, 0, 34);
+    sg.addColorStop(0, 'rgba(255,138,216,0)');
+    sg.addColorStop(1, 'rgba(255,138,216,0.16)');
+    ctx.fillStyle = sg;
+    ctx.beginPath();
+    ctx.arc(0, 0, 34, 0, U.TAU);
+    ctx.fill();
+    ctx.restore();
   }
 }
 
@@ -351,6 +377,11 @@ class PowerUp {
     ctx.save();
     ctx.translate(this.x, this.y);
     U.dropShadow(ctx, 14, 4, 11, 0.32);
+    // painted pickup sprite if available
+    if (SPR.local(ctx, 'pick_' + this.kind, this.t, 1 + Math.sin(this.t * 5) * 0.06)) {
+      ctx.restore();
+      return;
+    }
     const pulse = 1 + Math.sin(this.t * 5) * 0.08;
     ctx.scale(pulse, pulse);
     ctx.rotate(Math.sin(this.t * 1.8) * 0.25);
@@ -403,6 +434,11 @@ function drawBullet(ctx, b) {
   ctx.save();
   ctx.translate(b.x, b.y);
   ctx.rotate(Math.atan2(b.vy, b.vx) + Math.PI / 2);
+  // painted projectile sprite if available
+  if (SPR.local(ctx, 'bullet_' + b.type, performance.now() / 1000 + (b.x + b.y) * 0.01)) {
+    ctx.restore();
+    return;
+  }
   ctx.globalCompositeOperation = 'lighter';
   if (b.type === 'pulse') {
     // flying cheese glob with a melty tail

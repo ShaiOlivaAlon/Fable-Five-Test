@@ -2,6 +2,7 @@
 
 (function () {
   const canvas = document.getElementById('game');
+  Assets.load(); // painted sprite sheets if present in /assets; procedural fallback otherwise
   Game.init(canvas);
   Input.attach(canvas);
 

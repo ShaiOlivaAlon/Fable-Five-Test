@@ -173,6 +173,11 @@ function googly(ctx, x, y, r, px, py) {
 }
 
 function drawEnemyShape(ctx, e, t, flash) {
+  // painted enemy sprite if its sheet is loaded
+  if (SPR.local(ctx, 'enemy_' + e.type, t + e.ph)) {
+    if (flash) SPR.flash(ctx, 'enemy_' + e.type);
+    return;
+  }
   const c = e.spec.color;
   ctx.shadowColor = c;
   ctx.shadowBlur = 12;
@@ -604,6 +609,16 @@ class Boss {
       ctx.globalAlpha = 0.85 + Math.sin(t * 40) * 0.15;
     }
 
+    // painted boss sprite if its sheet is loaded
+    if (SPR.local(ctx, 'boss', t)) {
+      if (this.flash > 0) SPR.flash(ctx, 'boss');
+      ctx.restore();
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+      this.drawBeam(ctx);
+      return;
+    }
+
     const tankPath = () => {
       ctx.beginPath();
       ctx.roundRect(-58, -64, 116, 44, 8);
@@ -834,6 +849,11 @@ class Boss {
     ctx.shadowBlur = 0;
     ctx.globalAlpha = 1;
 
+    this.drawBeam(ctx);
+  }
+
+  drawBeam(ctx) {
+    const g = this.g;
     // telegraphed sewage geyser (world coords)
     if (this.beamState === 1) {
       if (Math.sin(g.time * 30) > 0) {
