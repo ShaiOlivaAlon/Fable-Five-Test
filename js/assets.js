@@ -112,13 +112,13 @@ const FRAMES = {
   //      row1 [burger][PIZZA=player][pickle]  row2 [banana][trashbag][condom]
   //      row3 [toilet][cheese][meatball]      row4 [donuts][chef][virus]
   //      row5 = BOSSES (7 across). Values are visual estimates — calibrate. ----
-  player:        { sheet: 'enemies', fx: 0.335, fy: 0.01, fw: 0.058, fh: 0.18, n: 5, fps: 10, h: 88 },
-  enemy_drone:   { sheet: 'enemies', fx: 0.01,  fy: 0.01, fw: 0.062, fh: 0.18, n: 5, fps: 8,  h: 50 }, // burger
-  enemy_sentry:  { sheet: 'enemies', fx: 0.01,  fy: 0.41, fw: 0.062, fh: 0.18, n: 5, fps: 6,  h: 56 }, // toilet cannon
-  enemy_splitter:{ sheet: 'enemies', fx: 0.68,  fy: 0.41, fw: 0.080, fh: 0.18, n: 4, fps: 8,  h: 50 }, // meatball
-  enemy_mite:    { sheet: 'enemies', fx: 0.68,  fy: 0.60, fw: 0.080, fh: 0.18, n: 4, fps: 10, h: 30 }, // virus
-  enemy_diver:   { sheet: 'enemies', fx: 0.005, fy: 0.21, fw: 0.052, fh: 0.18, n: 6, fps: 12, h: 44 }, // banana
-  boss:          { sheet: 'enemies', fx: 0.43,  fy: 0.78, fw: 0.14, fh: 0.215, n: 1, fps: 0, h: 250 }, // toilet king
+  player:        { sheet: 'enemies', fx: 0.355, fy: 0.01, fw: 0.050, fh: 0.18, n: 5, fps: 10, h: 96 },
+  enemy_drone:   { sheet: 'enemies', fx: 0.01,  fy: 0.01, fw: 0.062, fh: 0.18, n: 5, fps: 8,  h: 64 }, // burger
+  enemy_sentry:  { sheet: 'enemies', fx: 0.01,  fy: 0.41, fw: 0.062, fh: 0.18, n: 5, fps: 6,  h: 80 }, // toilet cannon
+  enemy_splitter:{ sheet: 'enemies', fx: 0.68,  fy: 0.41, fw: 0.080, fh: 0.18, n: 4, fps: 8,  h: 66 }, // meatball
+  enemy_mite:    { sheet: 'enemies', fx: 0.68,  fy: 0.60, fw: 0.080, fh: 0.18, n: 4, fps: 10, h: 44 }, // virus
+  enemy_diver:   { sheet: 'enemies', fx: 0.005, fy: 0.21, fw: 0.052, fh: 0.18, n: 6, fps: 12, h: 64 }, // banana
+  boss:          { sheet: 'enemies', fx: 0.43,  fy: 0.78, fw: 0.14, fh: 0.215, n: 1, fps: 0, h: 280 }, // toilet king
 
   // ---- projectiles.png ----
   bullet_pulse:  { sheet: 'projectiles', fx: 0.0,   fy: 0.04, fw: 0.072, fh: 0.16,  n: 5, fps: 14, h: 30 }, // pizza slices

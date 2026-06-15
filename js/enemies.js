@@ -3,11 +3,11 @@
 /* drone = flying donut · sentry = toilet alien · splitter = snot blob
    mite = booger · diver = zombie pickle */
 const ENEMY = {
-  drone:    { hp: 20, r: 14, score: 100, color: '#ff7ad1', fire: 0 },
-  sentry:   { hp: 48, r: 17, score: 250, color: '#cfe6f0', fire: 2.4 },
-  splitter: { hp: 34, r: 15, score: 200, color: '#8aff3a', fire: 0 },
-  mite:     { hp: 10, r: 9,  score: 60,  color: '#8aff3a', fire: 0 },
-  diver:    { hp: 16, r: 12, score: 150, color: '#58d83a', fire: 0 },
+  drone:    { hp: 20, r: 18, score: 100, color: '#ff7ad1', fire: 0 },
+  sentry:   { hp: 48, r: 22, score: 250, color: '#cfe6f0', fire: 2.4 },
+  splitter: { hp: 34, r: 19, score: 200, color: '#8aff3a', fire: 0 },
+  mite:     { hp: 10, r: 12, score: 60,  color: '#8aff3a', fire: 0 },
+  diver:    { hp: 16, r: 15, score: 150, color: '#58d83a', fire: 0 },
 };
 
 class Enemy {

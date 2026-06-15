@@ -193,6 +193,7 @@ const BG = {
   },
 
   update(dt) {
+    this.bgT = (this.bgT || 0) + dt;
     for (const L of this.layers) L.y = (L.y + L.speed * dt) % L.h;
     for (const f of this.fog) {
       f.x += f.vx * dt;
@@ -213,19 +214,28 @@ const BG = {
     ctx.fillStyle = '#0e0318';
     ctx.fillRect(-40, -40, LW + 80, LH + 80);
 
-    // painted background scrolls vertically when its image is present
+    // painted background: cover-fit, gently drifting, darkened so the gameplay
+    // sprites read clearly (the illustration is a single scene, so it must not
+    // tile — tiling repeats the ground into the sky)
     if (Assets.ok('bg')) {
       const img = Assets.imgs.bg;
-      const dw = LW, dh = LW * (img.naturalHeight / img.naturalWidth);
+      const iw = sheetW(img), ih = sheetH(img);
+      const scale = Math.max(LW / iw, LH / ih) * 1.04; // slight overscan for drift room
+      const dw = iw * scale, dh = ih * scale;
+      const dx = (LW - dw) / 2;
+      const slackY = dh - LH;
+      const oy = -slackY * (0.5 + 0.5 * Math.sin(this.bgT * 0.12));
       ctx.imageSmoothingEnabled = true;
-      let y = (this.layers[0].y * 1.4) % dh;
-      for (let yy = y - dh; yy < LH; yy += dh) ctx.drawImage(img, 0, yy, dw, dh);
-      // drifting haze + slime drips still overlay on top
+      ctx.drawImage(img, dx, oy, dw, dh);
+      // darkening veil for sprite contrast
+      ctx.fillStyle = 'rgba(8,4,18,0.5)';
+      ctx.fillRect(-40, -40, LW + 80, LH + 80);
+      // drifting slime drips overlay for motion
       ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = 0.4;
       for (const d of this.drips) {
         ctx.strokeStyle = d.color;
         ctx.lineWidth = 1.6;
-        ctx.globalAlpha = 0.5;
         ctx.beginPath();
         ctx.moveTo(d.x, d.y);
         ctx.lineTo(d.x, d.y - d.len);
