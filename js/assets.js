@@ -448,11 +448,27 @@ function sliceStrip(img, f, W, H) {
   const d = x.getImageData(0, 0, tw, th).data; // throws if tainted -> caller falls back
   const A = 24;
   const cw = tw / f.n;
+  // per-column opaque density, so we can snap cell cuts to the GAPS between frames
+  // (AI sheets aren't always evenly spaced — exact 1/8 cuts sliced sprites in half)
+  const col = new Array(tw).fill(0);
+  for (let yy = 0; yy < th; yy += 2) {
+    const row = yy * tw;
+    for (let xx = 0; xx < tw; xx++) if (d[(row + xx) * 4 + 3] > A) col[xx]++;
+  }
+  const bnd = [0];
+  for (let k = 1; k < f.n; k++) {
+    const centre = k * cw, win = Math.max(3, cw * 0.2);
+    const lo = Math.max(1, Math.floor(centre - win)), hi = Math.min(tw - 1, Math.ceil(centre + win));
+    let best = Math.round(centre), bestv = Infinity;
+    for (let xx = lo; xx <= hi; xx++) if (col[xx] < bestv) { bestv = col[xx]; best = xx; }
+    bnd.push(best);
+  }
+  bnd.push(tw);
   const cells = [];
   // union (cell-local) extent of the opaque pixels across every cell
   let uL = Infinity, uR = -Infinity, uT = Infinity, uB = -Infinity, any = false;
   for (let i = 0; i < f.n; i++) {
-    const cx0 = Math.floor(i * cw), cx1 = Math.floor((i + 1) * cw);
+    const cx0 = bnd[i], cx1 = bnd[i + 1];
     cells.push([cx0, cx1]);
     for (let yy = 0; yy < th; yy++) {
       const row = yy * tw;
