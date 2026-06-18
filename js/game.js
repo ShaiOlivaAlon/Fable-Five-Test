@@ -403,6 +403,9 @@ const Game = {
       if (this.comboT <= 0) this.combo = 0;
     }
     this.charge = Math.min(1, this.charge + dt * 0.025); // passive charge trickle
+    // music watchdog: if the level track ever stalls/stops, nudge it back to life
+    const mc = Sfx.music.els && Sfx.music.els[Sfx.music.cur];
+    if (mc && mc.paused && Sfx.music.currentSrc && !Sfx.music.fade) mc.play().catch(() => {});
     this.updateHud();
   },
 
@@ -498,7 +501,7 @@ const Game = {
     }
     Particles.explosion(e.x, e.y, e.spec.color, e.type === 'sentry' ? 1.25 : e.type === 'mite' ? 0.6 : 1);
     this.splat(e.x, e.y, U.pick(['poop_splat', 'blood_splat', 'yellow_spl', 'rainbow_exp']),
-      e.type === 'sentry' ? 3.2 : e.type === 'mite' ? 1.3 : 2.3);
+      e.type === 'sentry' ? 2.1 : e.type === 'mite' ? 0.9 : 1.5);
     Sfx.boom(e.type === 'sentry' ? 0.9 : 0.55);
     this.shake(e.type === 'sentry' ? 5 : 3);
     this.hitstop = Math.max(this.hitstop, 0.025);
@@ -773,11 +776,11 @@ const Game = {
   // slime boss meter); falls back to the HTML HUD if a sheet isn't loaded
   drawHUD(ctx) {
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    const padTop = 16;
-    // ---- score as slime digits, top-left ----
+    const padTop = 10;
+    // ---- score as slime digits, top-left (compact) ----
     if (Assets.ok('slimenums')) {
-      const dh = 30;
-      let x = 14;
+      const dh = 22;
+      let x = 10;
       for (const c of this.score.toLocaleString()) {
         if (c === ',') {
           ctx.save(); ctx.translate(x, padTop); drawSheetCell(ctx, 'slimenums', 10, 4, 4, dh, dh); ctx.restore();
@@ -791,35 +794,34 @@ const Game = {
         }
       }
     }
-    // ---- numbered pizza-heart lives, top-right ----
+    // ---- numbered pizza-heart lives, top-right (compact) ----
     if (Assets.ok('heart') && this.player) {
       const hv = U.clamp(this.player.hp | 0, 0, 5);
-      const hh = 40;
+      const hh = 30;
       ctx.save();
-      ctx.translate(this.W - 14 - hh, padTop - 6);
-      drawSheetCell(ctx, 'heart', 5 - hv, 4, 4, hh, hh); // cells: 0=5lives … 5=0lives
+      ctx.translate(this.W - 12 - hh, padTop - 4);
+      drawSheetCell(ctx, 'heart', 5 - hv, 4, 4, hh, hh);
       ctx.restore();
     }
-    // ---- illustrated weapon panel, left of the lives ----
+    // ---- small weapon card, left of the lives ----
     if (Assets.ok('weaponcards') && this.player) {
-      // pulse=basic, scatter=spread/green, missile=fiery/red, beam=charged/cyan
       const map = { pulse: 1, scatter: 6, missile: 4, beam: 10 };
       const cell = map[this.player.weapon] != null ? map[this.player.weapon] : 1;
-      const ww = 70, wh = 70;
+      const ww = 46;
       ctx.save();
-      ctx.translate(this.W - 14 - 40 - 8 - ww, padTop - 18);
-      drawSheetCell(ctx, 'weaponcards', cell, 4, 4, ww, wh);
+      ctx.translate(this.W - 12 - 30 - 6 - ww, padTop - 8);
+      drawSheetCell(ctx, 'weaponcards', cell, 4, 4, ww, ww);
       ctx.restore();
     }
-    // ---- slime power meter for the boss, top-centre ----
+    // ---- thin boss power meter pinned to the very top edge (clears the boss) ----
     if (this.boss && Assets.ok('healthbar')) {
-      const f = U.clamp(this.boss.hp / this.boss.maxHp, 0, 1);
-      const idx = Math.round(f * 8); // cells 0..8 run empty→full
-      const bw = Math.min(300, this.W * 0.6), bh = bw * 0.5;
-      ctx.save();
-      ctx.translate((this.W - bw) / 2, padTop - 4);
-      drawSheetCell(ctx, 'healthbar', idx, 4, 4, bw, bh);
-      ctx.restore();
+      const img = Assets.imgs.healthbar;
+      const cw = sheetW(img) / 4, ch = sheetH(img) / 4;
+      const idx = Math.round(U.clamp(this.boss.hp / this.boss.maxHp, 0, 1) * 8);
+      const col = idx % 4, row = (idx / 4) | 0;
+      const bandY = row * ch + ch * 0.30, bandH = ch * 0.40; // crop just the bar band
+      const bw = Math.min(180, this.W * 0.5), bh = 30;
+      try { ctx.drawImage(img, col * cw, bandY, cw, bandH, (this.W - bw) / 2, 2, bw, bh); } catch (e) { /* not ready */ }
     }
   },
 

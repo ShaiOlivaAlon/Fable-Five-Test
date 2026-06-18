@@ -122,8 +122,10 @@ canvas { position: absolute; inset: 0; display: block; }
 /* score, lives and the boss meter are drawn illustrated on the canvas;
    hide their HTML versions and drop the remaining text below them */
 #score, #hearts, #bossbar { display: none !important; }
-.hud-col.left { padding-top: 40px; }
+#weapon { display: none; } /* shown as the weapon card on canvas */
+.hud-col.left { padding-top: 30px; }
 .hud-col.right { padding-top: 46px; }
+#boosts .chip { font-size: 9px; padding: 1px 5px; } /* smaller so it doesn't crowd the boss */
 #flash.on { animation: flash .35s ease-out; }
 @keyframes flash { 0% { opacity: 1; } 100% { opacity: 0; } }
 

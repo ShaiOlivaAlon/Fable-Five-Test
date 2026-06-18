@@ -489,8 +489,8 @@ class Boss {
     this.hitT = Math.max(0, this.hitT - dt);
 
     if (this.state === 'enter') {
-      this.y = U.lerp(this.y, 130, Math.min(1, dt * 1.4));
-      if (this.y > 128) { this.y = 130; this.state = 'fight'; }
+      this.y = U.lerp(this.y, 168, Math.min(1, dt * 1.4)); // sit lower so the top HUD never covers it
+      if (this.y > 166) { this.y = 168; this.state = 'fight'; }
       return;
     }
 
