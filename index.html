@@ -57,6 +57,12 @@
       <h1 class="red">YOU&nbsp;GOT&nbsp;FLUSHED</h1>
       <div class="sub">the galaxy smells slightly worse now</div>
       <div class="final"><span>SCORE</span><b id="final-score">0</b></div>
+      <div class="hs-entry hidden" id="hsentry-over">
+        <div class="hs-new">🏆 NEW HIGH SCORE!</div>
+        <input id="hsname-over" maxlength="12" placeholder="ENTER NAME" autocomplete="off" spellcheck="false">
+        <button id="hssave-over" class="neon-btn small">SAVE</button>
+      </div>
+      <div class="scores" id="scores-over"></div>
       <button id="btn-retry" class="neon-btn">EW, AGAIN</button>
     </div>
   </div>
@@ -67,6 +73,12 @@
       <div class="sub">the toilet overlord has been flushed</div>
       <div class="final"><span>SCORE</span><b id="clear-score">0</b></div>
       <div class="final small"><span>MAX CHAIN</span><b id="clear-chain">×0</b></div>
+      <div class="hs-entry hidden" id="hsentry-clear">
+        <div class="hs-new">🏆 NEW HIGH SCORE!</div>
+        <input id="hsname-clear" maxlength="12" placeholder="ENTER NAME" autocomplete="off" spellcheck="false">
+        <button id="hssave-clear" class="neon-btn small">SAVE</button>
+      </div>
+      <div class="scores" id="scores-clear"></div>
       <button id="btn-again" class="neon-btn">GET GROSS AGAIN</button>
     </div>
   </div>

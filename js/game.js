@@ -1,5 +1,31 @@
 'use strict';
 
+/* persistent local top-scores table */
+const HighScores = {
+  KEY: 'sg_scores', MAX: 8,
+  load() {
+    try {
+      const l = JSON.parse(localStorage.getItem(this.KEY) || '[]');
+      return Array.isArray(l) ? l.filter(e => e && typeof e.score === 'number') : [];
+    } catch (e) { return []; }
+  },
+  save(list) { try { localStorage.setItem(this.KEY, JSON.stringify(list)); } catch (e) { /* private mode */ } },
+  qualifies(score) {
+    if (score <= 0) return false;
+    const l = this.load();
+    return l.length < this.MAX || score > l[l.length - 1].score;
+  },
+  add(name, score) {
+    const l = this.load();
+    const entry = { name: name || 'YOU', score };
+    l.push(entry);
+    l.sort((a, b) => b.score - a.score);
+    if (l.length > this.MAX) l.length = this.MAX;
+    this.save(l);
+    return l.indexOf(entry);
+  },
+};
+
 const Game = {
   canvas: null, ctx: null, dpr: 1,
   W: 0, H: 0, scale: 1, LW: 420, LH: 800,
@@ -26,6 +52,8 @@ const Game = {
       'bossbar', 'bossfill', 'banner', 'banner-main', 'banner-sub', 'flash',
       'screen-title', 'screen-over', 'screen-clear',
       'final-score', 'clear-score', 'clear-chain', 'best',
+      'hsentry-over', 'hsname-over', 'hssave-over', 'scores-over',
+      'hsentry-clear', 'hsname-clear', 'hssave-clear', 'scores-clear',
     ];
     for (const id of ids) this.els[id] = document.getElementById(id);
     this.resize();
@@ -363,6 +391,7 @@ const Game = {
     this.els['screen-over'].classList.remove('hidden');
     this.els.hud.classList.add('hidden');
     this.els.bossbar.classList.add('hidden');
+    this.showHighScores('over');
   },
 
   levelClear() {
@@ -375,6 +404,40 @@ const Game = {
     this.els['clear-chain'].textContent = '×' + this.maxCombo;
     this.els['screen-clear'].classList.remove('hidden');
     this.els.hud.classList.add('hidden');
+    this.showHighScores('clear');
+  },
+
+  // top-score table with name entry when the run qualifies
+  showHighScores(suffix) {
+    const entry = this.els['hsentry-' + suffix];
+    const board = this.els['scores-' + suffix];
+    const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const render = (hi) => {
+      const list = HighScores.load();
+      board.innerHTML = list.length
+        ? list.map((e, i) => `<div class="hsrow${i === hi ? ' me' : ''}"><span class="hsrank">${i + 1}</span><span class="hsnm">${esc(e.name)}</span><span class="hssc">${e.score.toLocaleString()}</span></div>`).join('')
+        : '<div class="hsrow"><span class="hsnm">no scores yet — be the first!</span></div>';
+    };
+    if (HighScores.qualifies(this.score)) {
+      entry.classList.remove('hidden');
+      const input = this.els['hsname-' + suffix];
+      input.value = '';
+      render(-1);
+      const submit = () => {
+        if (entry.classList.contains('hidden')) return;
+        const name = (input.value.trim() || 'YOU').slice(0, 12).toUpperCase();
+        const idx = HighScores.add(name, this.score);
+        entry.classList.add('hidden');
+        render(idx);
+        Sfx.weaponUp();
+      };
+      this.els['hssave-' + suffix].onclick = submit;
+      input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); submit(); } };
+      setTimeout(() => { try { input.focus(); } catch (e) { /* ignore */ } }, 120);
+    } else {
+      entry.classList.add('hidden');
+      render(-1);
+    }
   },
 
   saveBest() {
