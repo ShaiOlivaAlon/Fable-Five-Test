@@ -108,31 +108,29 @@ function sheetH(im) { return im.naturalHeight || im.height; }
      h     : desired on-screen height in world units (width follows aspect)
    Coordinates are best-guess from the reference sheets — calibrate here. */
 const FRAMES = {
-  // ---- enemies.png : the animated-strip sheet, read as 3 column-groups x 5 rows.
-  //      row1 [burger][PIZZA=player][pickle]  row2 [banana][trashbag][condom]
-  //      row3 [toilet][cheese][meatball]      row4 [donuts][chef][virus]
-  //      row5 = BOSSES (7 across). Values are visual estimates — calibrate. ----
-  player:        { sheet: 'enemies', fx: 0.344, fy: 0.005, fw: 0.0610, fh: 0.195, n: 5, fps: 10, h: 96 },
-  enemy_drone:   { sheet: 'enemies', fx: 0.012, fy: 0.005, fw: 0.0632, fh: 0.195, n: 5, fps: 8,  h: 64 }, // burger
-  enemy_sentry:  { sheet: 'enemies', fx: 0.015, fy: 0.405, fw: 0.0615, fh: 0.195, n: 5, fps: 6,  h: 80 }, // toilet cannon
-  enemy_splitter:{ sheet: 'enemies', fx: 0.674, fy: 0.405, fw: 0.0755, fh: 0.195, n: 4, fps: 8,  h: 66 }, // meatball
-  enemy_mite:    { sheet: 'enemies', fx: 0.675, fy: 0.595, fw: 0.0728, fh: 0.195, n: 4, fps: 10, h: 46 }, // virus
-  enemy_diver:   { sheet: 'enemies', fx: 0.014, fy: 0.205, fw: 0.0524, fh: 0.195, n: 6, fps: 12, h: 64 }, // banana
-  boss:          { sheet: 'enemies', fx: 0.41,  fy: 0.77, fw: 0.175, fh: 0.225, n: 1, fps: 0, h: 280 }, // toilet king
+  // ---- enemies.png : measured row y-bands r1 .096-.225 r2 .278-.413 r3 .456-.565
+  //      r4 .617-.723 r5(boss) .759-.945 ; bands are generous, slicer trims tight ----
+  player:        { sheet: 'enemies', fx: 0.344, fy: 0.090, fw: 0.0610, fh: 0.142, n: 5, fps: 10, h: 96 }, // pizza
+  enemy_drone:   { sheet: 'enemies', fx: 0.012, fy: 0.090, fw: 0.0632, fh: 0.142, n: 5, fps: 8,  h: 64 }, // burger
+  enemy_sentry:  { sheet: 'enemies', fx: 0.016, fy: 0.450, fw: 0.0612, fh: 0.122, n: 5, fps: 6,  h: 80 }, // toilet
+  enemy_splitter:{ sheet: 'enemies', fx: 0.674, fy: 0.450, fw: 0.0755, fh: 0.122, n: 4, fps: 8,  h: 66 }, // meatball
+  enemy_mite:    { sheet: 'enemies', fx: 0.675, fy: 0.611, fw: 0.0723, fh: 0.118, n: 4, fps: 10, h: 46 }, // virus
+  enemy_diver:   { sheet: 'enemies', fx: 0.014, fy: 0.272, fw: 0.0524, fh: 0.148, n: 6, fps: 12, h: 64 }, // banana
+  boss:          { sheet: 'enemies', fx: 0.400, fy: 0.753, fw: 0.165,  fh: 0.198, n: 1, fps: 0,  h: 280 }, // toilet king
 
-  // ---- projectiles.png ----
-  bullet_pulse:  { sheet: 'projectiles', fx: 0.0,   fy: 0.04, fw: 0.072, fh: 0.16,  n: 5, fps: 14, h: 30 }, // pizza slices
-  bullet_scatter:{ sheet: 'projectiles', fx: 0.355, fy: 0.30, fw: 0.063, fh: 0.115, n: 4, fps: 14, h: 20 }, // slime balls
-  bullet_missile:{ sheet: 'projectiles', fx: 0.92,  fy: 0.80, fw: 0.07,  fh: 0.12,  n: 1, fps: 0,  h: 24 }, // fish
+  // ---- projectiles.png : measured rows r1 .103-.228 r2 .307-.388 r5 .838-.925 ----
+  bullet_pulse:  { sheet: 'projectiles', fx: 0.018, fy: 0.100, fw: 0.0486, fh: 0.135, n: 5, fps: 14, h: 30 }, // pizza slices
+  bullet_scatter:{ sheet: 'projectiles', fx: 0.348, fy: 0.303, fw: 0.0690, fh: 0.092, n: 4, fps: 14, h: 20 }, // slime balls
+  bullet_missile:{ sheet: 'projectiles', fx: 0.828, fy: 0.834, fw: 0.0740, fh: 0.095, n: 1, fps: 0,  h: 24 }, // fish
 
-  // ---- items.png : icon row (pizza slice, TP roll, detergent pod, battery, sponge) ----
-  pick_scatter:  { sheet: 'items', fx: 0.012, fy: 0.66, fw: 0.085, fh: 0.135, n: 1, fps: 0, h: 38 }, // pizza slice
-  pick_shield:   { sheet: 'items', fx: 0.123, fy: 0.66, fw: 0.085, fh: 0.135, n: 1, fps: 0, h: 38 }, // TP roll
-  pick_mult:     { sheet: 'items', fx: 0.233, fy: 0.66, fw: 0.085, fh: 0.135, n: 1, fps: 0, h: 38 }, // pod
-  pick_over:     { sheet: 'items', fx: 0.345, fy: 0.66, fw: 0.085, fh: 0.135, n: 1, fps: 0, h: 38 }, // battery
-  pick_repair:   { sheet: 'items', fx: 0.455, fy: 0.66, fw: 0.085, fh: 0.135, n: 1, fps: 0, h: 38 }, // sponge
-  pick_beam:     { sheet: 'items', fx: 0.345, fy: 0.66, fw: 0.085, fh: 0.135, n: 1, fps: 0, h: 38 }, // battery
-  pick_missile:  { sheet: 'items', fx: 0.012, fy: 0.66, fw: 0.085, fh: 0.135, n: 1, fps: 0, h: 38 }, // pizza slice
+  // ---- items.png : power-up icon row y .683-.847 (pizza, TP, pod, battery, sponge) ----
+  pick_scatter:  { sheet: 'items', fx: 0.020, fy: 0.683, fw: 0.072, fh: 0.158, n: 1, fps: 0, h: 34 }, // pizza slice
+  pick_shield:   { sheet: 'items', fx: 0.123, fy: 0.683, fw: 0.066, fh: 0.158, n: 1, fps: 0, h: 34 }, // TP roll
+  pick_mult:     { sheet: 'items', fx: 0.220, fy: 0.683, fw: 0.076, fh: 0.158, n: 1, fps: 0, h: 34 }, // pod
+  pick_over:     { sheet: 'items', fx: 0.330, fy: 0.683, fw: 0.058, fh: 0.158, n: 1, fps: 0, h: 34 }, // battery
+  pick_repair:   { sheet: 'items', fx: 0.413, fy: 0.683, fw: 0.076, fh: 0.158, n: 1, fps: 0, h: 34 }, // sponge
+  pick_beam:     { sheet: 'items', fx: 0.330, fy: 0.683, fw: 0.058, fh: 0.158, n: 1, fps: 0, h: 34 }, // battery
+  pick_missile:  { sheet: 'items', fx: 0.020, fy: 0.683, fw: 0.072, fh: 0.158, n: 1, fps: 0, h: 34 }, // pizza slice
 };
 
 /* Per-key cache of exact frame rectangles. Because the sheets now have
