@@ -84,6 +84,7 @@ const Game = {
   selectedShipKey: 'player',
   player: null, boss: null,
   enemies: [], pbullets: [], ebullets: [], powerups: [], splats: [],
+  paused: false,
   score: 0, dispScore: -1, combo: 0, comboT: 0, maxCombo: 0,
   shakeAmp: 0, hitstop: 0, beamY: -10,
   lastHp: -1, lastWeapon: '', lastBoost: '§', lastCombo: -1,
@@ -96,7 +97,7 @@ const Game = {
     const ids = [
       'hud', 'score', 'combo', 'hearts', 'weapon', 'boosts',
       'bossbar', 'bossname', 'bossfill', 'banner', 'banner-main', 'banner-sub', 'flash',
-      'screen-title', 'screen-over', 'screen-clear',
+      'screen-title', 'screen-over', 'screen-clear', 'screen-pause', 'btn-pause',
       'final-score', 'clear-score', 'clear-chain', 'best', 'over-sub', 'clear-sub',
       'hsentry-over', 'hsname-over', 'hssave-over', 'scores-over', 'gscores-over',
       'hsentry-clear', 'hsname-clear', 'hssave-clear', 'scores-clear', 'gscores-clear',
@@ -152,11 +153,31 @@ const Game = {
     this.lastWeapon = '';
     this.lastBoost = '§';
     this.lastCombo = -1;
+    this.paused = false;
     this.els['screen-title'].classList.add('hidden');
     this.els['screen-over'].classList.add('hidden');
     this.els['screen-clear'].classList.add('hidden');
+    this.els['screen-pause'].classList.add('hidden');
     this.els.bossbar.classList.add('hidden');
     this.els.hud.classList.remove('hidden');
+    this.els['btn-pause'].classList.remove('hidden');
+  },
+
+  togglePause(force) {
+    const want = force !== undefined ? force : !this.paused;
+    if (want === this.paused) return;
+    if (want && this.state !== 'playing') return; // only pause an active run
+    this.paused = want;
+    this.els['screen-pause'].classList.toggle('hidden', !this.paused);
+    this.els['btn-pause'].textContent = this.paused ? '▶' : '❚❚';
+    if (this.paused) {
+      Sfx.music.pauseAll();
+      if (BG.video) BG.video.pause();
+    } else {
+      Sfx.resume();
+      Sfx.music.resumeAll();
+      if (BG.video && BG._videoSrc) BG.video.play().catch(() => {});
+    }
   },
 
   bullet(x, y, vx, vy, dmg, type) {
@@ -489,6 +510,8 @@ const Game = {
     this.els['final-score'].textContent = this.score.toLocaleString();
     this.els['screen-over'].classList.remove('hidden');
     this.els.hud.classList.add('hidden');
+    this.els['btn-pause'].classList.add('hidden');
+    this.paused = false; this.els['screen-pause'].classList.add('hidden');
     this.els.bossbar.classList.add('hidden');
     this.showHighScores('over');
   },
@@ -505,6 +528,8 @@ const Game = {
     this.els['clear-chain'].textContent = '×' + this.maxCombo;
     this.els['screen-clear'].classList.remove('hidden');
     this.els.hud.classList.add('hidden');
+    this.els['btn-pause'].classList.add('hidden');
+    this.paused = false; this.els['screen-pause'].classList.add('hidden');
     this.showHighScores('clear');
   },
 
@@ -671,6 +696,17 @@ const Game = {
       ctx.save();
       ctx.translate(this.W - 14 - hh, padTop - 6);
       drawSheetCell(ctx, 'heart', 5 - hv, 4, 4, hh, hh); // cells: 0=5lives … 5=0lives
+      ctx.restore();
+    }
+    // ---- illustrated weapon panel, left of the lives ----
+    if (Assets.ok('weaponcards') && this.player) {
+      // pulse=basic, scatter=spread/green, missile=fiery/red, beam=charged/cyan
+      const map = { pulse: 1, scatter: 6, missile: 4, beam: 10 };
+      const cell = map[this.player.weapon] != null ? map[this.player.weapon] : 1;
+      const ww = 70, wh = 70;
+      ctx.save();
+      ctx.translate(this.W - 14 - 40 - 8 - ww, padTop - 18);
+      drawSheetCell(ctx, 'weaponcards', cell, 4, 4, ww, wh);
       ctx.restore();
     }
     // ---- slime power meter for the boss, top-centre ----

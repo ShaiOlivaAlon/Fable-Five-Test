@@ -41,6 +41,20 @@ canvas { position: absolute; inset: 0; display: block; }
 }
 #btn-mute:active { transform: scale(.9); }
 
+/* pause toggle — bottom-right, mirrors the mute button */
+#btn-pause {
+  position: absolute; z-index: 20; pointer-events: auto; cursor: pointer;
+  right: calc(10px + env(safe-area-inset-right));
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 1px solid rgba(138,255,58,.5); background: rgba(14,8,22,.62);
+  color: #d8ffc0; font-size: 13px; font-weight: 700; letter-spacing: 1px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 10px rgba(138,255,58,.35);
+  -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+}
+#btn-pause:active { transform: scale(.9); }
+
 /* score, lives and the boss meter are drawn illustrated on the canvas;
    hide their HTML versions and drop the remaining text below them */
 #score, #hearts, #bossbar { display: none !important; }

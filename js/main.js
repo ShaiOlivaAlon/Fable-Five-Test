@@ -190,14 +190,23 @@
     renderMute();
   });
 
+  // pause: button, Esc key, and the resume button on the overlay
+  document.getElementById('btn-pause').addEventListener('click', (e) => { e.stopPropagation(); Game.togglePause(); });
+  document.getElementById('btn-resume').addEventListener('click', (e) => { e.stopPropagation(); Game.togglePause(false); });
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') { e.preventDefault(); Game.togglePause(); }
+  });
+
   let last = performance.now();
   function frame(now) {
     requestAnimationFrame(frame);
     let dt = (now - last) / 1000;
     last = now;
     if (dt > 0.05) dt = 0.05;
-    if (Game.hitstop > 0) Game.hitstop -= dt; // freeze-frame for impact
-    else Game.update(dt);
+    if (!Game.paused) {
+      if (Game.hitstop > 0) Game.hitstop -= dt; // freeze-frame for impact
+      else Game.update(dt);
+    }
     Game.render();
     if (!titleEl.classList.contains('hidden')) animateThumbs(Game.time); // live menu icons
   }

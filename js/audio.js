@@ -186,6 +186,8 @@ const Sfx = {
     },
 
     stop() { for (const a of this.els) if (a) a.pause(); this.currentSrc = null; },
+    pauseAll() { for (const a of this.els) if (a) a.pause(); },
+    resumeAll() { const a = this.els[this.cur]; if (a && a.src) a.play().catch(() => {}); },
     start() { this.play('lvl1'); },
     applyMute() { for (const a of this.els) if (a) a.muted = Sfx.muted; },
   },

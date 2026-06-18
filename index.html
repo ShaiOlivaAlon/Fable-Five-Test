@@ -18,6 +18,7 @@
   <div id="flash"></div>
 
   <button id="btn-mute" aria-label="Mute sound">🔊</button>
+  <button id="btn-pause" class="hidden" aria-label="Pause">❚❚</button>
 
   <div id="hud" class="hidden">
     <div class="hud-col left">
@@ -39,6 +40,14 @@
   <div id="banner" class="hidden">
     <div id="banner-main"></div>
     <div id="banner-sub"></div>
+  </div>
+
+  <div id="screen-pause" class="screen hidden">
+    <div class="title-card">
+      <h1 class="green">PAUSED</h1>
+      <div class="sub">catch your breath, grosser</div>
+      <button id="btn-resume" class="neon-btn">RESUME</button>
+    </div>
   </div>
 
   <div id="screen-loading" class="screen">
