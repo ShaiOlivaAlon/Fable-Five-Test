@@ -106,21 +106,22 @@
 
   // character / ship select on the title screen — live animated icons + names
   const shipThumbs = [];
+  const THUMB = 72;
   function drawShipThumb(cv, key, t, sel) {
     const x = cv.getContext('2d');
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    if (cv.width !== 64 * dpr) { cv.width = 64 * dpr; cv.height = 64 * dpr; }
+    if (cv.width !== THUMB * dpr) { cv.width = THUMB * dpr; cv.height = THUMB * dpr; }
     x.setTransform(dpr, 0, 0, dpr, 0, 0);
-    x.clearRect(0, 0, 64, 64);
+    x.clearRect(0, 0, THUMB, THUMB);
     x.save();
-    x.translate(32, 34 + Math.sin(t * 3 + key.length) * 1.6); // gentle idle bob
+    x.translate(THUMB / 2, THUMB / 2 + 3 + Math.sin(t * 3 + key.length) * 1.8); // gentle idle bob
     const f = FRAMES[key];
     if (f && Assets.ok(f.sheet)) {
-      SPR.local(x, key, t, (sel ? 54 : 46) / f.h); // animate through the strip; selected = bigger
+      SPR.local(x, key, t, (sel ? 66 : 56) / f.h); // animate through the strip; selected = bigger
     } else {
       x.fillStyle = sel ? '#8aff3a' : '#ffb347';
       x.beginPath();
-      x.moveTo(0, -18); x.lineTo(15, 14); x.lineTo(-15, 14); x.closePath();
+      x.moveTo(0, -22); x.lineTo(18, 16); x.lineTo(-18, 16); x.closePath();
       x.fill();
     }
     x.restore();
