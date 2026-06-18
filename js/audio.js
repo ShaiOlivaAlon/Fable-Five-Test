@@ -138,41 +138,55 @@ const Sfx = {
   music: {
     // named shortcuts; world tracks are passed as raw paths (e.g. 'audio/world3.mp3')
     files: { theme: 'audio/theme.mp3', lvl1: 'audio/lvl1.mp3', gameover: 'audio/gameover.mp3' },
-    el: null, currentSrc: null,
+    els: [null, null], cur: 0, currentSrc: null, fade: null, vol: 0.45,
 
-    audio() {
-      if (!this.el) {
-        const a = new Audio();
-        a.loop = true;        // loops if the track ends before the level does
-        a.preload = 'auto';
-        a.volume = 0.45;      // sits under the boosted SFX + level ambience
-        this.el = a;
-      }
-      return this.el;
+    mk() {
+      const a = new Audio();
+      a.loop = true;     // loops gaplessly if the track ends before the level does
+      a.preload = 'auto';
+      a.volume = 0;
+      return a;
     },
 
+    // crossfade to a track — two <audio> elements ping-pong so a world/menu
+    // change blends instead of cutting to silence
     play(name) {
       if (!name) return;
       const src = this.files[name] || name; // accept a known key OR a direct path
-      const a = this.audio();
-      if (this.currentSrc === src && !a.paused) return; // already rolling
-      a.muted = Sfx.muted;
-      if (this.currentSrc !== src) {
-        a.src = src;
-        this.currentSrc = src;
+      if (this.currentSrc === src) {
+        const a = this.els[this.cur];
+        if (a && a.paused) a.play().catch(() => {});
+        return;
       }
-      try { a.currentTime = 0; } catch (e) { /* not seekable yet */ }
-      a.play().catch(() => { /* needs a gesture; retried on the next tap */ });
+      this.currentSrc = src;
+      const ni = this.cur ^ 1;
+      const nx = this.els[ni] || (this.els[ni] = this.mk());
+      const old = this.els[this.cur];
+      nx.src = src;
+      nx.muted = Sfx.muted;
+      nx.volume = 0;
+      try { nx.currentTime = 0; } catch (e) { /* not seekable yet */ }
+      nx.play().catch(() => { /* needs a gesture; retried on the next tap */ });
+      this.cur = ni;
+      this._crossfade(old, nx);
     },
 
-    stop() {
-      if (this.el) this.el.pause();
-      this.currentSrc = null;
+    _crossfade(oldEl, nxEl) {
+      if (this.fade) clearInterval(this.fade);
+      const dur = 700, step = 40; let t = 0;
+      this.fade = setInterval(() => {
+        t += step;
+        const k = Math.min(1, t / dur);
+        if (!Sfx.muted) {
+          nxEl.volume = this.vol * k;
+          if (oldEl) oldEl.volume = this.vol * (1 - k);
+        }
+        if (k >= 1) { clearInterval(this.fade); this.fade = null; if (oldEl) oldEl.pause(); }
+      }, step);
     },
 
-    // older call site: gameplay music
+    stop() { for (const a of this.els) if (a) a.pause(); this.currentSrc = null; },
     start() { this.play('lvl1'); },
-
-    applyMute() { if (this.el) this.el.muted = Sfx.muted; },
+    applyMute() { for (const a of this.els) if (a) a.muted = Sfx.muted; },
   },
 };

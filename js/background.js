@@ -6,6 +6,7 @@ const BG = {
   layers: [], fog: [], drips: [], LW: 0, LH: 0,
   video: null, vdur: 0, _videoSrc: null, videoVol: 0.4, // each level's atmospheric ambience, under the music
   fallbackImg: null, _fallbackSrc: null,
+  snapCv: null, snapN: 0, // last good video frame, shown during source swaps to avoid a black flash
   travel: 0, leveling: false, // 0=bottom of the scene shown, 1=top; pans up as the level progresses
 
   // keep the video's audio in sync with the global mute (called from Sfx.setMuted)
@@ -96,6 +97,20 @@ const BG = {
       this.video.muted = Sfx.muted; // this call is gesture-driven, so ambience can be heard
       this.video.play().catch(() => { /* ignore */ });
     }
+  },
+
+  // capture a small copy of the current video frame (~every 5 frames) so a clip
+  // swap can hold the last image while the next one buffers
+  snapshot() {
+    this.snapN++;
+    if (this.snapCv && this.snapN % 5 !== 0) return;
+    const v = this.video, w = v.videoWidth, h = v.videoHeight;
+    if (!w) return;
+    const s = Math.min(1, 360 / Math.max(w, h));
+    const sw = Math.max(1, Math.round(w * s)), sh = Math.max(1, Math.round(h * s));
+    if (!this.snapCv) this.snapCv = document.createElement('canvas');
+    if (this.snapCv.width !== sw) { this.snapCv.width = sw; this.snapCv.height = sh; }
+    try { this.snapCv.getContext('2d').drawImage(v, 0, 0, sw, sh); } catch (e) { /* not ready */ }
   },
 
   videoReady() {
@@ -355,12 +370,19 @@ const BG = {
     ctx.fillRect(-40, -40, LW + 80, LH + 80);
     const vf = this.verticalFraction();
 
-    // 1) live level-1 video
+    // 1) live world video
     if (this.videoReady() &&
         this.drawScene(ctx, this.video, this.video.videoWidth, this.video.videoHeight, vf)) {
+      this.snapshot();
       return;
     }
-    // 2) the world's static fallback image (until the video has a frame)
+    // 2) during a source swap the new clip has no frame yet — hold the last
+    // captured frame so transitions never flash to black/procedural
+    if (this.snapCv && this.snapCv.width &&
+        this.drawScene(ctx, this.snapCv, this.snapCv.width, this.snapCv.height, vf)) {
+      return;
+    }
+    // 3) the world's static fallback image (if provided)
     if (this.fallbackImg &&
         this.drawScene(ctx, this.fallbackImg, this.fallbackImg.naturalWidth, this.fallbackImg.naturalHeight, vf)) {
       return;
