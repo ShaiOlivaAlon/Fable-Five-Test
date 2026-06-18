@@ -446,7 +446,8 @@ function sliceStrip(img, f, W, H) {
   const d = x.getImageData(0, 0, tw, th).data; // throws if tainted -> caller falls back
   const A = 24;
   const cw = tw / f.n;
-  const rects = [];
+  // per-cell opaque bounds
+  const bounds = [];
   for (let i = 0; i < f.n; i++) {
     const cx0 = Math.floor(i * cw), cx1 = Math.floor((i + 1) * cw);
     let left = cx1, right = cx0 - 1, top = th, bot = -1;
@@ -461,10 +462,29 @@ function sliceStrip(img, f, W, H) {
         }
       }
     }
-    if (right < left || bot < top) {
-      rects.push({ sx: sx0 + cx0, sy: sy0, sw: cx1 - cx0, sh: th });
-    } else {
-      rects.push({ sx: sx0 + left, sy: sy0 + top, sw: right - left + 1, sh: bot - top + 1 });
+    bounds.push({ cx0, cx1, left, right, top, bot, empty: right < left || bot < top });
+  }
+  const rects = [];
+  // Single full-height strips (the 8-frame enemy/boss sheets) use ONE shared crop
+  // window across every frame, so the character stays put and centred and the
+  // animation doesn't jitter/"split" when a frame adds a projectile or limb.
+  if (f.fh >= 0.99 && f.n > 1) {
+    let uL = Infinity, uR = -Infinity, uT = th, uB = -1, any = false;
+    for (const b of bounds) {
+      if (b.empty) continue;
+      any = true;
+      uL = Math.min(uL, b.left - b.cx0);
+      uR = Math.max(uR, b.right - b.cx0);
+      uT = Math.min(uT, b.top);
+      uB = Math.max(uB, b.bot);
+    }
+    if (!any) { uL = 0; uR = Math.floor(cw) - 1; uT = 0; uB = th - 1; }
+    const sw = Math.max(1, uR - uL + 1), sh = Math.max(1, uB - uT + 1);
+    for (let i = 0; i < f.n; i++) rects.push({ sx: sx0 + Math.floor(i * cw) + uL, sy: sy0 + uT, sw, sh });
+  } else {
+    for (const b of bounds) {
+      if (b.empty) rects.push({ sx: sx0 + b.cx0, sy: sy0, sw: b.cx1 - b.cx0, sh: th });
+      else rects.push({ sx: sx0 + b.left, sy: sy0 + b.top, sw: b.right - b.left + 1, sh: b.bot - b.top + 1 });
     }
   }
   return rects;
@@ -512,6 +532,21 @@ const SPR = {
     const r = rects[frame];
     const img = Assets.imgs[f.sheet];
     const unit = (f.h * scale) / refH; // world px per source px, constant across frames
+    const dw = r.sw * unit, dh = r.sh * unit;
+    ctx.drawImage(img, r.sx, r.sy, r.sw, r.sh, -dw / 2, -dh / 2, dw, dh);
+    return true;
+  },
+
+  // draw one specific frame index (for state-driven animation, e.g. a boss that
+  // only shows its attack frame while actually attacking)
+  frameAt(ctx, key, idx, scale = 1) {
+    const f = FRAMES[key];
+    if (!f || !Assets.ok(f.sheet)) return false;
+    const { rects, refH } = frameRects(key);
+    const n = rects.length;
+    const r = rects[((idx % n) + n) % n];
+    const img = Assets.imgs[f.sheet];
+    const unit = (f.h * scale) / refH;
     const dw = r.sw * unit, dh = r.sh * unit;
     ctx.drawImage(img, r.sx, r.sy, r.sw, r.sh, -dw / 2, -dh / 2, dw, dh);
     return true;

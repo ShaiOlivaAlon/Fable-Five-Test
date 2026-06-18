@@ -475,6 +475,8 @@ class Boss {
     this.dying = 0;
     this.dead = false;
     this.dir = 1;
+    this.tellT = 0; // >0 while attacking → show the attack frame
+    this.hitT = 0;  // throttle for the hurt sound
   }
 
   get phase() { return this.hp > this.maxHp * 0.55 ? 1 : 2; }
@@ -483,6 +485,8 @@ class Boss {
     const g = this.g;
     this.t += dt;
     this.flash = Math.max(0, this.flash - dt);
+    this.tellT = Math.max(0, this.tellT - dt);
+    this.hitT = Math.max(0, this.hitT - dt);
 
     if (this.state === 'enter') {
       this.y = U.lerp(this.y, 130, Math.min(1, dt * 1.4));
@@ -554,6 +558,7 @@ class Boss {
   attack() {
     const g = this.g, p = this.phase;
     const roll = Math.random();
+    this.tellT = 0.5; // show the attack/charge frame briefly
     this.atkT = p === 2 ? U.rand(1.4, 2.2) : U.rand(1.9, 2.6);
     if (p === 2 && this.beamState === 0 && roll < 0.3) {
       this.beamState = 1;
@@ -599,7 +604,8 @@ class Boss {
   damage(d, g) {
     if (this.state !== 'fight') return;
     this.hp -= d;
-    this.flash = 0.06;
+    this.flash = 0.12; // visible hurt flash
+    if (this.hitT <= 0) { Sfx.hit(); this.hitT = 0.07; } // throttled hurt sound
     if (this.hp <= 0) {
       this.hp = 0;
       this.state = 'dying';
@@ -621,9 +627,16 @@ class Boss {
       ctx.globalAlpha = 0.85 + Math.sin(t * 40) * 0.15;
     }
 
-    // painted per-world boss sprite (single 8-frame strip)
+    // painted per-world boss sprite — idle loops the calm frames; the last frame
+    // is the attack/charge tell, shown only while actually attacking or dying
     const bKey = WORLDS[Level.worldIdx] && WORLDS[Level.worldIdx].bossSprite;
-    if (bKey && SPR.local(ctx, bKey, t)) {
+    if (bKey && SPR.ok(bKey)) {
+      const n = (FRAMES[bKey] && FRAMES[bKey].n) || 8;
+      let bi;
+      if (this.state === 'dying') bi = n - 1;
+      else if (this.beamState > 0 || this.tellT > 0) bi = n - 1;
+      else bi = Math.floor(t * 5) % Math.max(1, n - 1);
+      SPR.frameAt(ctx, bKey, bi);
       if (this.flash > 0) SPR.flash(ctx, bKey);
       ctx.restore();
       ctx.shadowBlur = 0;

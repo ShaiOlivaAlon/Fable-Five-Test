@@ -389,7 +389,7 @@ const Game = {
     }
     Particles.explosion(e.x, e.y, e.spec.color, e.type === 'sentry' ? 1.25 : e.type === 'mite' ? 0.6 : 1);
     this.splat(e.x, e.y, U.pick(['poop_splat', 'blood_splat', 'yellow_spl', 'rainbow_exp']),
-      e.type === 'sentry' ? 1.3 : e.type === 'mite' ? 0.6 : 0.95);
+      e.type === 'sentry' ? 3.2 : e.type === 'mite' ? 1.3 : 2.3);
     Sfx.boom(e.type === 'sentry' ? 0.9 : 0.55);
     this.shake(e.type === 'sentry' ? 5 : 3);
     this.hitstop = Math.max(this.hitstop, 0.025);
