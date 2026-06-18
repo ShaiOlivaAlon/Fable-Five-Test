@@ -128,13 +128,14 @@ const Sfx = {
      would be blocked from auto-playing. theme → menu + victory, lvl1 →
      gameplay, gameover → death screen. */
   music: {
+    // named shortcuts; world tracks are passed as raw paths (e.g. 'audio/world3.mp3')
     files: { theme: 'audio/theme.mp3', lvl1: 'audio/lvl1.mp3', gameover: 'audio/gameover.mp3' },
-    el: null, current: null,
+    el: null, currentSrc: null,
 
     audio() {
       if (!this.el) {
         const a = new Audio();
-        a.loop = true;
+        a.loop = true;        // loops if the track ends before the level does
         a.preload = 'auto';
         a.volume = 0.6;
         this.el = a;
@@ -143,13 +144,14 @@ const Sfx = {
     },
 
     play(name) {
-      if (!this.files[name]) return;
+      if (!name) return;
+      const src = this.files[name] || name; // accept a known key OR a direct path
       const a = this.audio();
-      if (this.current === name && !a.paused) return; // already rolling
+      if (this.currentSrc === src && !a.paused) return; // already rolling
       a.muted = Sfx.muted;
-      if (this.current !== name) {
-        a.src = this.files[name];
-        this.current = name;
+      if (this.currentSrc !== src) {
+        a.src = src;
+        this.currentSrc = src;
       }
       try { a.currentTime = 0; } catch (e) { /* not seekable yet */ }
       a.play().catch(() => { /* needs a gesture; retried on the next tap */ });
@@ -157,7 +159,7 @@ const Sfx = {
 
     stop() {
       if (this.el) this.el.pause();
-      this.current = null;
+      this.currentSrc = null;
     },
 
     // older call site: gameplay music

@@ -4,18 +4,18 @@
    eyeball planets + drifting haze + falling slime drips. */
 const BG = {
   layers: [], fog: [], drips: [], LW: 0, LH: 0,
-  video: null, videoSrc: 'level1_bg.mp4',
+  video: null, vdur: 0, _videoSrc: null,
+  fallbackImg: null, _fallbackSrc: null,
   travel: 0, leveling: false, // 0=bottom of the scene shown, 1=top; pans up as the level progresses
 
-  /* Create the level-1 background video once. Muted + inline so mobile browsers
-     allow playback; drawn to the canvas each frame in draw(). Kept off-screen
-     (not display:none — some browsers won't decode hidden video) so it still
-     feeds frames. If the file is missing or can't decode, we silently fall back
-     to the static 'bg' image, then to the procedural layers. */
-  initVideo() {
+  /* Create the background <video> once. Muted + inline so mobile browsers allow
+     playback; drawn to the canvas each frame in draw(). Kept off-screen (not
+     display:none — some browsers won't decode hidden video) so it still feeds
+     frames. setWorld() swaps the source per world. If a world's video is missing
+     or can't decode, we fall back to its static image, then procedural layers. */
+  initVideo(src) {
     if (this.video) return;
     const v = document.createElement('video');
-    v.src = this.videoSrc;
     v.muted = true;
     v.defaultMuted = true;
     v.loop = true;
@@ -23,13 +23,10 @@ const BG = {
     v.setAttribute('playsinline', '');
     v.setAttribute('webkit-playsinline', '');
     v.preload = 'auto';
-    v.crossOrigin = 'anonymous';
     v.style.cssText = 'position:fixed;width:2px;height:2px;top:-10px;left:-10px;opacity:0.01;pointer-events:none;z-index:-1;';
-    v.addEventListener('error', () => { this.video = null; }, { once: true });
-    // Seamless loop: the generated clip can have a black/garbage tail frame and
-    // a decode gap when it wraps to 0. We loop a touch early to a small head
-    // offset so neither is ever drawn — far smoother than native loop alone.
-    this.vdur = 0;
+    // Seamless loop: a generated clip can have a black/garbage tail frame and a
+    // decode gap when it wraps to 0. We loop a touch early to a small head offset
+    // so neither is ever drawn — far smoother than native loop alone.
     v.addEventListener('loadedmetadata', () => { this.vdur = v.duration || 0; });
     v.addEventListener('timeupdate', () => {
       const d = this.vdur || v.duration || 0;
@@ -37,12 +34,45 @@ const BG = {
     });
     document.body.appendChild(v);
     this.video = v;
-    v.play().catch(() => { /* needs a user gesture; playVideo() retries on tap */ });
+    if (src) { this._videoSrc = src; v.src = src; v.play().catch(() => { /* needs a gesture */ }); }
+  },
+
+  /* Switch the background to a world: swap the video source and load the world's
+     static fallback image (drawn until the new video has a frame, so a world
+     change never flashes the previous world or a black frame). */
+  setWorld(world) {
+    if (!world) return;
+    if (!this.video) this.initVideo(world.video || null);
+    this.travel = 0;
+    // static fallback image (own loader — full scene, not a keyed sprite sheet)
+    if (world.fallback && world.fallback !== this._fallbackSrc) {
+      this._fallbackSrc = world.fallback;
+      this.fallbackImg = null;
+      const im = new Image();
+      im.onload = () => { if (this._fallbackSrc === world.fallback) this.fallbackImg = im; };
+      im.onerror = () => { if (this._fallbackSrc === world.fallback) this.fallbackImg = null; };
+      im.src = world.fallback;
+    } else if (!world.fallback) {
+      this._fallbackSrc = null;
+      this.fallbackImg = null;
+    }
+    // video source
+    if (world.video) {
+      if (world.video !== this._videoSrc) {
+        this._videoSrc = world.video;
+        this.vdur = 0;
+        this.video.src = world.video;
+        this.video.load();
+      }
+      this.video.play().catch(() => { /* retried on next tap */ });
+    } else {
+      this._videoSrc = null;
+      try { this.video.pause(); this.video.removeAttribute('src'); this.video.load(); } catch (e) { /* ignore */ }
+    }
   },
 
   playVideo() {
-    if (!this.video) this.initVideo();
-    if (this.video) this.video.play().catch(() => { /* ignore */ });
+    if (this.video && this._videoSrc) this.video.play().catch(() => { /* ignore */ });
   },
 
   videoReady() {
@@ -307,9 +337,9 @@ const BG = {
         this.drawScene(ctx, this.video, this.video.videoWidth, this.video.videoHeight, vf)) {
       return;
     }
-    // 2) static fallback image (loaded as the 'bg' sheet)
-    if (Assets.ok('bg') &&
-        this.drawScene(ctx, Assets.imgs.bg, sheetW(Assets.imgs.bg), sheetH(Assets.imgs.bg), vf)) {
+    // 2) the world's static fallback image (until the video has a frame)
+    if (this.fallbackImg &&
+        this.drawScene(ctx, this.fallbackImg, this.fallbackImg.naturalWidth, this.fallbackImg.naturalHeight, vf)) {
       return;
     }
 

@@ -61,10 +61,6 @@ const Assets = {
     blood:       'red_goo_splattersheet_f895825a3685470e8ecc15b58cff5aea.png',
     poop:        'cartoon_poop_splat_spritesheet_1ed7752aedcf41e6a5f652b6fda65bc1.png',
     yellow:      'yellow_puddle_spray_sprite_sheet_2d04d62afb404ffaa812d4176dc9b7e8.png',
-    // static fallback for the level-1 video background (drawn when the video
-    // can't play / is still buffering). Left un-keyed: it's a full scene, not a
-    // sprite card. Drop the file in at this path and it loads automatically.
-    bg:          'level1_bg.png',
   },
 
   imgs: {},

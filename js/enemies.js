@@ -14,7 +14,7 @@ class Enemy {
   constructor(type, o = {}) {
     this.type = type;
     this.spec = ENEMY[type];
-    this.hp = this.spec.hp;
+    this.hp = this.spec.hp * (Level.hpMul || 1); // tougher in later worlds
     this.r = this.spec.r;
     this.delay = o.delay || 0;
     this.from = o.from || { x: U.rand(40, 380), y: -40 };
@@ -60,7 +60,7 @@ class Enemy {
       if (this.spec.fire) {
         this.fireT -= dt;
         if (this.fireT <= 0) {
-          this.fireT = this.spec.fire * U.rand(0.8, 1.25);
+          this.fireT = this.spec.fire * U.rand(0.8, 1.25) * (Level.fireMul || 1);
           this.shoot(g);
         }
       } else if (Math.random() < dt * 0.05) {
@@ -106,6 +106,7 @@ class Enemy {
   }
 
   shoot(g, speed = 240) {
+    speed *= (Level.spdMul || 1); // faster shots in later worlds
     const a = U.angTo(this.x, this.y, g.player.x, g.player.y);
     g.ebullets.push({
       x: this.x, y: this.y + 8,
@@ -454,7 +455,8 @@ function drawEnemyShape(ctx, e, t, flash) {
 class Boss {
   constructor(g) {
     this.g = g;
-    this.maxHp = 1500;
+    const tier = Level.tier || 0;
+    this.maxHp = Math.round(1500 * (1 + tier * 0.32)); // each world's boss is tankier
     this.hp = this.maxHp;
     this.x = g.LW / 2;
     this.y = -140;
@@ -901,17 +903,48 @@ class Boss {
   }
 }
 
-/* Demo level: 5 choreographed waves, then the Great Cake Overlord. */
+/* The 7 gross worlds. Each has its own video background, static fallback image,
+   music track and boss name. Enemy choreography is shared (Level.build) but
+   scaled up per world for rising difficulty. Missing assets degrade gracefully:
+   no video → static image → procedural; missing music simply stays silent. */
+const WORLDS = [
+  { name: 'ROTTEN CANDY CAROUSEL', sub: 'the donuts smell you already',
+    video: 'level1_bg.mp4',     fallback: 'level1_bg.png', music: 'audio/lvl1.mp3',  boss: 'THE GREAT CAKE OVERLORD' },
+  { name: 'TRASH MOON BUFFET',    sub: 'leftovers that learned to bite back',
+    video: null,                fallback: null,            music: 'audio/world2.mp3', boss: 'THE MOLDY BURGER KING' },
+  { name: 'DIRTY DESERT WORLD',   sub: 'sand, dust and regret',
+    video: 'worlds/world3.mp4', fallback: null,            music: 'audio/world3.mp3', boss: 'THE DUST MUMMY' },
+  { name: 'TOILET ORBIT',         sub: 'you really came all this way for this',
+    video: 'worlds/world4.mp4', fallback: null,            music: 'audio/world4.mp3', boss: 'THE PORCELAIN THRONE' },
+  { name: 'FREEZER BURN SECTOR',  sub: 'expired in 2009, still furious',
+    video: 'worlds/world5.mp4', fallback: null,            music: 'audio/world5.mp3', boss: 'THE MYSTERY MEATBALL' },
+  { name: 'GRAVEYARD MEAT MOON',  sub: 'the worms remember your face',
+    video: 'worlds/world6.mp4', fallback: null,            music: 'audio/world6.mp3', boss: 'THE ZOMBIE BUTCHER' },
+  { name: 'THE ABYSS',            sub: 'there is no bottom, only gross',
+    video: 'worlds/world7.mp4', fallback: null,            music: 'audio/world6.mp3', boss: 'THE ALL-SEEING SLOP' },
+  // NOTE: world 2 video and world 7 music not yet supplied; world 7 reuses world 6 music for now.
+];
+
 const Level = {
   waves: [], waveIdx: -1, queue: [], betweenT: 0, bossSpawned: false, done: false,
+  worldIdx: 0, tier: 0, hpMul: 1, spdMul: 1, fireMul: 1,
 
-  reset(g) {
+  reset(g) { this.loadWorld(g, 0); },
+
+  // (re)configure for a world: difficulty scaling, fresh wave queue, swap bg+music
+  loadWorld(g, idx) {
+    this.worldIdx = idx;
+    this.tier = idx;
+    this.hpMul = 1 + idx * 0.20;                    // enemies get tankier
+    this.spdMul = 1 + idx * 0.06;                   // shots fly a little faster
+    this.fireMul = Math.max(0.55, 1 - idx * 0.08);  // and come more often
     this.waveIdx = -1;
     this.queue = [];
-    this.betweenT = 1.2;
+    this.betweenT = 1.4;
     this.bossSpawned = false;
     this.done = false;
     this.waves = this.build(g);
+    g.applyWorld(WORLDS[idx], idx);
   },
 
   // 0 at the first wave → 1 once the boss arrives; drives the background pan
@@ -1076,7 +1109,7 @@ const Level = {
           this.betweenT = 1.6;
         } else if (!this.bossSpawned) {
           this.bossSpawned = true;
-          g.banner('⚠ CAKE OVERLORD ⚠', 'something huge clogged the sector. it’s mad at you', true);
+          g.banner('⚠ ' + WORLDS[this.worldIdx].boss + ' ⚠', 'something huge just woke up. it’s mad at you', true);
           Sfx.alarm();
           this.queue = [{ d: 2.2, boss: true }];
         }

@@ -4,7 +4,7 @@
   const canvas = document.getElementById('game');
   Game.init(canvas);
   Input.attach(canvas);
-  BG.initVideo(); // level-1 background clip; tries muted autoplay, retried on first tap
+  BG.initVideo(WORLDS[0].video); // world 1 clip; buffers for the loading bar, retried on tap
 
   // ---- loading gate: hold the title until the art and the video (or its
   // static fallback) are ready, so the stage never starts mid-download.
@@ -149,9 +149,7 @@
   const begin = () => {
     Sfx.init();
     Sfx.resume();
-    Sfx.music.play('lvl1'); // level theme
-    BG.playVideo(); // ensure the bg clip is rolling (autoplay may have been blocked)
-    Game.start();
+    Game.start(); // start() → Level.reset → applyWorld swaps in world 1's bg + music
   };
   for (const id of ['btn-start', 'btn-retry', 'btn-again']) {
     document.getElementById(id).addEventListener('click', begin);

@@ -424,7 +424,31 @@ const Game = {
     this.els.bossbar.classList.add('hidden');
     Level.done = true;
     this.flash('rgba(255,255,255,0.5)');
-    setTimeout(() => this.levelClear(), 1400);
+    setTimeout(() => this.advanceWorld(), 1600);
+  },
+
+  // swap the background, music and boss name when a world (re)loads
+  applyWorld(world, idx) {
+    BG.setWorld(world);
+    Sfx.music.play(world.music);
+    this.els.bossname.textContent = '⚠ ' + world.boss;
+    this.banner('WORLD ' + (idx + 1), world.name);
+  },
+
+  // after a boss falls: on to the next world, or final victory after world 7
+  advanceWorld() {
+    if (this.state !== 'playing') return;
+    const next = Level.worldIdx + 1;
+    if (next < WORLDS.length) {
+      this.combo = 0;
+      this.score += 2000; // clearing a world bonus
+      if (this.player.hp < this.player.maxHp) this.player.hp++; // small mercy between worlds
+      Level.loadWorld(this, next);
+      BG.travel = 0;
+      BG.leveling = true;
+    } else {
+      this.levelClear();
+    }
   },
 
   playerDestroyed() {
