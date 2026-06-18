@@ -2,9 +2,53 @@
 
 (function () {
   const canvas = document.getElementById('game');
-  Assets.load(); // painted sprite sheets if present in /assets; procedural fallback otherwise
+  Assets.load(buildCharSelect); // painted sprite sheets if present; procedural fallback otherwise
   Game.init(canvas);
   Input.attach(canvas);
+
+  // character / ship select on the title screen
+  function drawShipThumb(cv, key) {
+    const x = cv.getContext('2d');
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    cv.width = 60 * dpr; cv.height = 60 * dpr;
+    x.setTransform(dpr, 0, 0, dpr, 0, 0);
+    x.clearRect(0, 0, 60, 60);
+    x.save();
+    x.translate(30, 32);
+    const f = FRAMES[key];
+    if (f && Assets.ok(f.sheet)) {
+      SPR.local(x, key, 0.15, 46 / f.h);
+    } else {
+      x.fillStyle = '#ffb347';
+      x.beginPath();
+      x.moveTo(0, -18); x.lineTo(15, 14); x.lineTo(-15, 14); x.closePath();
+      x.fill();
+    }
+    x.restore();
+  }
+
+  function buildCharSelect() {
+    const wrap = document.getElementById('charsel');
+    if (!wrap || wrap.childElementCount) return;
+    Game.SHIPS.forEach((s, i) => {
+      const opt = document.createElement('div');
+      opt.className = 'charopt' + (s.key === Game.selectedShipKey ? ' selected' : '');
+      const cv = document.createElement('canvas');
+      drawShipThumb(cv, s.key);
+      const lbl = document.createElement('div');
+      lbl.className = 'charlbl';
+      lbl.textContent = s.name;
+      opt.appendChild(cv);
+      opt.appendChild(lbl);
+      opt.addEventListener('click', () => {
+        Game.selectedShipKey = s.key;
+        for (const c of wrap.children) c.classList.remove('selected');
+        opt.classList.add('selected');
+        Sfx.init(); Sfx.resume(); Sfx.pickup();
+      });
+      wrap.appendChild(opt);
+    });
+  }
 
   window.addEventListener('resize', () => Game.resize());
   window.addEventListener('orientationchange', () => setTimeout(() => Game.resize(), 250));

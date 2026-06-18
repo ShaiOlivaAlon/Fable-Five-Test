@@ -4,6 +4,13 @@ const Game = {
   canvas: null, ctx: null, dpr: 1,
   W: 0, H: 0, scale: 1, LW: 420, LH: 800,
   state: 'title', time: 0,
+  SHIPS: [
+    { key: 'player', name: 'PIZZA' },
+    { key: 'ship_burger', name: 'BURGER' },
+    { key: 'ship_banana', name: 'BANANA' },
+    { key: 'ship_pickle', name: 'PICKLE' },
+  ],
+  selectedShipKey: 'player',
   player: null, boss: null,
   enemies: [], pbullets: [], ebullets: [], powerups: [],
   score: 0, dispScore: -1, combo: 0, comboT: 0, maxCombo: 0,

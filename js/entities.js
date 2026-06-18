@@ -162,8 +162,8 @@ class Player {
     ctx.fill();
     ctx.globalCompositeOperation = 'source-over';
 
-    // painted sprite takes over the hull if its sheet is loaded
-    if (SPR.local(ctx, 'player', t)) {
+    // painted sprite (selected ship) takes over the hull if its sheet is loaded
+    if (SPR.local(ctx, this.g.selectedShipKey || 'player', t)) {
       ctx.restore();
       // overdrive aura + shield still drawn over the sprite below
       if (this.over > 0) {

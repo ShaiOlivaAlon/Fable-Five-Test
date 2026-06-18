@@ -118,6 +118,11 @@ const FRAMES = {
   enemy_diver:   { sheet: 'enemies', fx: 0.014, fy: 0.272, fw: 0.0524, fh: 0.148, n: 6, fps: 12, h: 64 }, // banana
   boss:          { sheet: 'enemies', fx: 0.400, fy: 0.753, fw: 0.165,  fh: 0.198, n: 1, fps: 0,  h: 280 }, // toilet king
 
+  // selectable player ships (reuse the enemies-sheet strips, player-sized)
+  ship_burger:   { sheet: 'enemies', fx: 0.012, fy: 0.090, fw: 0.0632, fh: 0.142, n: 5, fps: 10, h: 96 },
+  ship_banana:   { sheet: 'enemies', fx: 0.014, fy: 0.272, fw: 0.0524, fh: 0.148, n: 6, fps: 12, h: 96 },
+  ship_pickle:   { sheet: 'enemies', fx: 0.678, fy: 0.090, fw: 0.0582, fh: 0.142, n: 5, fps: 10, h: 96 },
+
   // ---- projectiles.png : measured rows r1 .103-.228 r2 .307-.388 r5 .838-.925 ----
   bullet_pulse:  { sheet: 'projectiles', fx: 0.018, fy: 0.100, fw: 0.0486, fh: 0.135, n: 5, fps: 14, h: 30 }, // pizza slices
   bullet_scatter:{ sheet: 'projectiles', fx: 0.348, fy: 0.303, fw: 0.0690, fh: 0.092, n: 4, fps: 14, h: 20 }, // slime balls
