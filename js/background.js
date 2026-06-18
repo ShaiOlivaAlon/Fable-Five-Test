@@ -5,6 +5,7 @@
 const BG = {
   layers: [], fog: [], drips: [], LW: 0, LH: 0,
   video: null, videoSrc: 'level1_bg.mp4',
+  travel: 0, leveling: false, // 0=bottom of the scene shown, 1=top; pans up as the level progresses
 
   /* Create the level-1 background video once. Muted + inline so mobile browsers
      allow playback; drawn to the canvas each frame in draw(). Kept off-screen
@@ -25,6 +26,15 @@ const BG = {
     v.crossOrigin = 'anonymous';
     v.style.cssText = 'position:fixed;width:2px;height:2px;top:-10px;left:-10px;opacity:0.01;pointer-events:none;z-index:-1;';
     v.addEventListener('error', () => { this.video = null; }, { once: true });
+    // Seamless loop: the generated clip can have a black/garbage tail frame and
+    // a decode gap when it wraps to 0. We loop a touch early to a small head
+    // offset so neither is ever drawn — far smoother than native loop alone.
+    this.vdur = 0;
+    v.addEventListener('loadedmetadata', () => { this.vdur = v.duration || 0; });
+    v.addEventListener('timeupdate', () => {
+      const d = this.vdur || v.duration || 0;
+      if (d && v.currentTime >= d - 0.33) { try { v.currentTime = 0.06; } catch (e) { /* not seekable */ } }
+    });
     document.body.appendChild(v);
     this.video = v;
     v.play().catch(() => { /* needs a user gesture; playVideo() retries on tap */ });
@@ -243,16 +253,20 @@ const BG = {
     }
   },
 
-  // Cover-fit a single scene (video frame or painted image), gently drifting,
-  // then darken it and lay slime drips over for motion. The illustration/clip is
-  // one scene, so it must not tile — tiling repeats the ground into the sky.
-  drawScene(ctx, src, iw, ih, drift) {
+  // Cover-fit a scene (video frame or painted image) at vertical position `vf`
+  // (0 = bottom of the art on screen, 1 = top). The level pans bottom→top as it
+  // progresses; idle screens sit near the bottom with a gentle drift. We force
+  // enough vertical slack for a visible journey, then darken + lay slime drips.
+  drawScene(ctx, src, iw, ih, vf) {
     const { LW, LH } = this;
-    const scale = Math.max(LW / iw, LH / ih) * 1.04; // slight overscan for drift room
-    const dw = iw * scale, dh = ih * scale;
+    let scale = Math.max(LW / iw, LH / ih) * 1.04; // slight overscan
+    let dh = ih * scale;
+    const minSlack = LH * 0.55; // guarantee a real bottom→top distance to travel
+    if (dh - LH < minSlack) { scale = (LH + minSlack) / ih; dh = ih * scale; }
+    const dw = iw * scale;
     const dx = (LW - dw) / 2;
     const slackY = dh - LH;
-    const oy = -slackY * (0.5 + 0.5 * Math.sin(this.bgT * 0.12)) * (drift ? 1 : 0);
+    const oy = -slackY * (1 - U.clamp(vf, 0, 1));
     ctx.imageSmoothingEnabled = true;
     try { ctx.drawImage(src, dx, oy, dw, dh); } catch (e) { return false; }
     // darkening veil for sprite contrast
@@ -274,20 +288,28 @@ const BG = {
     return true;
   },
 
+  // vertical scroll position of the background: pans bottom→top with the level,
+  // idles near the bottom with a slow drift on menus/screens
+  verticalFraction() {
+    if (this.leveling) return U.clamp(this.travel, 0, 1);
+    return 0.10 + 0.06 * (0.5 + 0.5 * Math.sin(this.bgT * 0.12));
+  },
+
   draw(ctx) {
     const { LW, LH } = this;
     // overdraw so screen-shake never exposes raw canvas edges
     ctx.fillStyle = '#0e0318';
     ctx.fillRect(-40, -40, LW + 80, LH + 80);
+    const vf = this.verticalFraction();
 
-    // 1) live level-1 video (the clip already moves, so no extra drift)
+    // 1) live level-1 video
     if (this.videoReady() &&
-        this.drawScene(ctx, this.video, this.video.videoWidth, this.video.videoHeight, false)) {
+        this.drawScene(ctx, this.video, this.video.videoWidth, this.video.videoHeight, vf)) {
       return;
     }
-    // 2) static fallback image (sent separately, loaded as the 'bg' sheet)
+    // 2) static fallback image (loaded as the 'bg' sheet)
     if (Assets.ok('bg') &&
-        this.drawScene(ctx, Assets.imgs.bg, sheetW(Assets.imgs.bg), sheetH(Assets.imgs.bg), true)) {
+        this.drawScene(ctx, Assets.imgs.bg, sheetW(Assets.imgs.bg), sheetH(Assets.imgs.bg), vf)) {
       return;
     }
 

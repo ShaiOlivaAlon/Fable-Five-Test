@@ -48,6 +48,27 @@ const HighScores = {
   },
 };
 
+/* trash-talk shown on the end screens — picked at random so it keeps stinging */
+const TROLL = {
+  over: [
+    'even the toilets fought better than you',
+    'the boogers are laughing at you',
+    'you flew like expired mayonnaise',
+    'a wet sock would have lasted longer',
+    'the donuts didn’t even try hard',
+    'skill issue. profoundly, a skill issue',
+    'your ship smelled fear. and feet',
+    'the cake didn’t even need to show up',
+  ],
+  clear: [
+    'fine. you didn’t completely embarrass yourself',
+    'the cake is flushed. you got lucky',
+    'okay, that was less pathetic than expected',
+    'galaxy saved. nobody will thank you',
+    'you win. the smell remains, though',
+  ],
+};
+
 const Game = {
   canvas: null, ctx: null, dpr: 1,
   W: 0, H: 0, scale: 1, LW: 420, LH: 800,
@@ -76,7 +97,7 @@ const Game = {
       'hud', 'score', 'combo', 'hearts', 'weapon', 'boosts',
       'bossbar', 'bossfill', 'banner', 'banner-main', 'banner-sub', 'flash',
       'screen-title', 'screen-over', 'screen-clear',
-      'final-score', 'clear-score', 'clear-chain', 'best',
+      'final-score', 'clear-score', 'clear-chain', 'best', 'over-sub', 'clear-sub',
       'hsentry-over', 'hsname-over', 'hssave-over', 'scores-over', 'gscores-over',
       'hsentry-clear', 'hsname-clear', 'hssave-clear', 'scores-clear', 'gscores-clear',
     ];
@@ -124,6 +145,8 @@ const Game = {
     Popups.list.length = 0;
     this.player.reset();
     Level.reset(this);
+    BG.travel = 0;        // start at the bottom of the background
+    BG.leveling = true;   // pan up toward the boss as waves clear
     this.lastHp = -1;
     this.lastWeapon = '';
     this.lastBoost = '§';
@@ -178,6 +201,8 @@ const Game = {
     const p = this.player;
     if (p.alive) p.update(dt);
     Level.update(dt, this);
+    // ease the background pan toward the level's progress (bottom→top, boss=top)
+    BG.travel += (Level.progress() - BG.travel) * Math.min(1, dt * 0.5);
     if (this.boss) this.boss.update(dt);
 
     for (let i = this.enemies.length - 1; i >= 0; i--) {
@@ -345,7 +370,7 @@ const Game = {
     Popups.spawn(e.x, e.y, '+' + gain, this.player.mult > 1 ? '#c86bff' : '#d8ffc0', 13);
     if (this.combo >= 3) {
       Popups.spawn(e.x, e.y - 18,
-        '×' + this.combo + ' ' + U.pick(['EW!', 'GROSS!', 'NASTY!', 'YUCK!', 'SPLAT!']),
+        '×' + this.combo + ' ' + U.pick(['EW!', 'GROSS!', 'NASTY!', 'YUCK!', 'SPLAT!', 'BARF!', 'SQUELCH!', 'OOZE!']),
         '#ffd84d', 11);
     }
     Particles.explosion(e.x, e.y, e.spec.color, e.type === 'sentry' ? 1.25 : e.type === 'mite' ? 0.6 : 1);
@@ -415,8 +440,10 @@ const Game = {
   gameOver() {
     if (this.state !== 'playing') return;
     this.state = 'over';
+    BG.leveling = false;
     Sfx.music.play('gameover');
     this.saveBest();
+    this.els['over-sub'].textContent = U.pick(TROLL.over);
     this.els['final-score'].textContent = this.score.toLocaleString();
     this.els['screen-over'].classList.remove('hidden');
     this.els.hud.classList.add('hidden');
@@ -427,9 +454,11 @@ const Game = {
   levelClear() {
     if (this.state !== 'playing') return;
     this.state = 'clear';
+    BG.leveling = false;
     Sfx.jingle();
     Sfx.music.play('theme');
     this.saveBest();
+    this.els['clear-sub'].textContent = U.pick(TROLL.clear);
     this.els['clear-score'].textContent = this.score.toLocaleString();
     this.els['clear-chain'].textContent = '×' + this.maxCombo;
     this.els['screen-clear'].classList.remove('hidden');

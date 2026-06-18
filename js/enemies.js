@@ -914,6 +914,12 @@ const Level = {
     this.waves = this.build(g);
   },
 
+  // 0 at the first wave → 1 once the boss arrives; drives the background pan
+  progress() {
+    if (this.bossSpawned || !this.waves.length) return 1;
+    return U.clamp(this.waveIdx / this.waves.length, 0, 1);
+  },
+
   build(g) {
     const LW = g.LW, cx = LW / 2;
     const waves = [];
@@ -931,7 +937,7 @@ const Level = {
           slot: { x: cx + 32 + i * 40, y: 172 }, dur: 1.9,
         }) });
       }
-      waves.push({ name: 'WAVE 1', sub: 'the donuts have found you', list });
+      waves.push({ name: 'WAVE 1', sub: 'the donuts smell you already', list });
     }
 
     // W2 — toilet line + donut curtain; gift: scatter
@@ -948,7 +954,7 @@ const Level = {
           slot: { x: 60 + (i * (LW - 120)) / 5, y: 205 }, dur: 1.7,
         }) });
       }
-      waves.push({ name: 'WAVE 2', sub: 'toilets inbound · sprinkle spray acquired', list });
+      waves.push({ name: 'WAVE 2', sub: 'toilets inbound. they want a word', list });
     }
 
     // W3 — snot blobs + pickles; gift: anchovies
@@ -967,7 +973,7 @@ const Level = {
           diveDelay: U.rand(0.6, 1.6),
         }) });
       }
-      waves.push({ name: 'WAVE 3', sub: 'snot blobs split. ew. just... ew', list });
+      waves.push({ name: 'WAVE 3', sub: 'snot blobs split. you panic. ew', list });
     }
 
     // W4 — classic invader grid + flanking toilets; gift: mustard beam
@@ -985,7 +991,7 @@ const Level = {
       }
       list.push({ d: 2.2, e: () => new Enemy('sentry', { from: { x: -40, y: 240 }, slot: { x: 70, y: 235 }, dur: 1.4 }) });
       list.push({ d: 2.4, e: () => new Enemy('sentry', { from: { x: LW + 40, y: 240 }, slot: { x: LW - 70, y: 235 }, dur: 1.4 }) });
-      waves.push({ name: 'WAVE 4', sub: 'a dozen donuts. classic formation', list });
+      waves.push({ name: 'WAVE 4', sub: 'a dozen donuts in formation. good luck', list });
     }
 
     // W5 — pickle rush + chaos
@@ -1039,7 +1045,7 @@ const Level = {
         from: { x: U.rand(50, LW - 50), y: -40 },
         slot: { x: U.rand(60, LW - 60), y: U.rand(60, 120) }, dur: 1.0,
       }) });
-      waves.push({ name: 'WAVE 6', sub: 'maximum gross — nothing held back!', list });
+      waves.push({ name: 'WAVE 6', sub: 'everything at once. you asked for this', list });
     }
 
     return waves;
@@ -1070,7 +1076,7 @@ const Level = {
           this.betweenT = 1.6;
         } else if (!this.bossSpawned) {
           this.bossSpawned = true;
-          g.banner('⚠ CAKE OVERLORD ⚠', 'something huge just clogged the sector', true);
+          g.banner('⚠ CAKE OVERLORD ⚠', 'something huge clogged the sector. it’s mad at you', true);
           Sfx.alarm();
           this.queue = [{ d: 2.2, boss: true }];
         }

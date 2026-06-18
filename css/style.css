@@ -157,6 +157,21 @@ h1.green {
   0%, 100% { box-shadow: 0 5px 0 #3e8a14, 0 9px 14px rgba(0,0,0,.55), 0 0 14px rgba(138,255,58,.7), 0 0 44px rgba(255,77,216,.25); }
   50% { box-shadow: 0 5px 0 #3e8a14, 0 9px 14px rgba(0,0,0,.55), 0 0 26px rgba(138,255,58,1), 0 0 80px rgba(255,77,216,.45); }
 }
+/* loading screen */
+.loadbar {
+  width: min(260px, 70vw); height: 12px; margin: 20px auto 12px;
+  border: 1px solid rgba(138,255,58,.55); border-radius: 7px;
+  background: rgba(10,18,4,.6); overflow: hidden;
+  box-shadow: 0 0 14px rgba(138,255,58,.3) inset;
+}
+#loadfill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, #64d122, #8aff3a, #b7ff2e);
+  box-shadow: 0 0 12px #8aff3a;
+  transition: width .3s ease-out;
+}
+#loadmsg { min-height: 16px; animation: hum 1.6s ease-in-out infinite; }
+
 .hint { margin-top: 22px; color: rgba(190,230,160,.6); font-size: 12px; letter-spacing: 1px; }
 .best { margin-top: 10px; color: #ffd84d; font-size: 12px; letter-spacing: 2px; text-shadow: 0 0 8px rgba(255,216,77,.7); }
 .final { display: flex; gap: 14px; justify-content: center; align-items: baseline; margin-bottom: 10px; color: #d8ffc0; letter-spacing: 2px; }

@@ -41,15 +41,24 @@
     <div id="banner-sub"></div>
   </div>
 
-  <div id="screen-title" class="screen">
+  <div id="screen-loading" class="screen">
     <div class="title-card">
-      <div class="overline">GROSS SECTOR 7 // SMELL SIGNATURE DETECTED</div>
+      <div class="overline">BOOTING GROSS SECTOR 7</div>
       <h1>SPACE&nbsp;GROSSERS</h1>
-      <div class="sub">invading your personal space</div>
-      <div class="charsel-label">PICK YOUR GROSSER</div>
+      <div class="loadbar"><div id="loadfill"></div></div>
+      <div id="loadmsg" class="sub">warming up the boogers…</div>
+    </div>
+  </div>
+
+  <div id="screen-title" class="screen hidden">
+    <div class="title-card">
+      <div class="overline">GROSS SECTOR 7 // YOUR SMELL HAS BEEN DETECTED</div>
+      <h1>SPACE&nbsp;GROSSERS</h1>
+      <div class="sub">they can smell you from here</div>
+      <div class="charsel-label">PICK YOUR GROSSER · they're all doomed</div>
       <div class="charsel" id="charsel"></div>
       <button id="btn-start" class="neon-btn">LET'S GET GROSS</button>
-      <div class="hint">drag anywhere to fly · pizza fires automatically</div>
+      <div class="hint">drag to fly · it auto-fires · try not to cry</div>
       <div id="best" class="best"></div>
     </div>
   </div>
@@ -57,7 +66,7 @@
   <div id="screen-over" class="screen hidden">
     <div class="title-card">
       <h1 class="red">YOU&nbsp;GOT&nbsp;FLUSHED</h1>
-      <div class="sub">the galaxy smells slightly worse now</div>
+      <div class="sub" id="over-sub">even the toilets fought better than you</div>
       <div class="final"><span>SCORE</span><b id="final-score">0</b></div>
       <div class="hs-entry hidden" id="hsentry-over">
         <div class="hs-new">🏆 NEW HIGH SCORE!</div>
@@ -75,7 +84,7 @@
   <div id="screen-clear" class="screen hidden">
     <div class="title-card">
       <h1 class="green">SECTOR&nbsp;SANITIZED</h1>
-      <div class="sub">the toilet overlord has been flushed</div>
+      <div class="sub" id="clear-sub">fine. you didn't completely embarrass yourself</div>
       <div class="final"><span>SCORE</span><b id="clear-score">0</b></div>
       <div class="final small"><span>MAX CHAIN</span><b id="clear-chain">×0</b></div>
       <div class="hs-entry hidden" id="hsentry-clear">
