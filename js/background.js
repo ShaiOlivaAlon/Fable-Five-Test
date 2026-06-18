@@ -53,6 +53,7 @@ const BG = {
     if (this._endTimer) { clearTimeout(this._endTimer); this._endTimer = 0; }
     if (this.video) this.video.loop = true;
     this.travel = 0;
+    this.snapCv = null; // drop the previous clip's frame so the NEW world's fallback shows while buffering
     // static fallback image (own loader — full scene, not a keyed sprite sheet)
     if (world.fallback && world.fallback !== this._fallbackSrc) {
       this._fallbackSrc = world.fallback;
