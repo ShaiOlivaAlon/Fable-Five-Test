@@ -5,9 +5,13 @@
 
    The game ships with fully procedural art (entities.js / enemies.js draw
    everything with canvas paths). This layer lets the real illustrated sprite
-   sheets take over WHEN — and only when — the PNG files are present in
-   /assets. If a sheet is missing or still loading, every draw call falls back
-   to the procedural art, so the game always runs.
+   sheets take over WHEN — and only when — the PNG files are present. If a sheet
+   is missing or still loading, every draw call falls back to the procedural
+   art, so the game always runs.
+
+   The uploaded PNGs are flat RGB with NO alpha — each sprite sits on a uniform
+   solid-colour card (white, a vivid colour, or a dark one). keyOutBg() makes
+   those cards transparent at load time, per grid cell, so only the sprite shows.
 
    All sprite sheets are at the repo root with their original upload filenames.
    SHEETS maps short keys → real filenames so the rest of the code stays clean.
@@ -71,10 +75,12 @@ const Assets = {
       const img = new Image();
       img.decoding = 'async';
       img.onload = () => {
-        // sprite sheets ship on solid white; key it out (edge flood-fill so
-        // white *inside* outlined sprites is kept). The background image is
-        // full-bleed and left untouched.
-        this.imgs[name] = name === 'bg' ? img : keyOutWhiteBg(img);
+        // Each sprite sits on its own solid-colour card (white OR a vivid
+        // colour). Key the card out per grid cell by flood-filling from each
+        // cell's corners with that cell's own background colour, so colour
+        // *inside* the sprite outline is kept. bg (if ever present) is left raw.
+        const g = sheetGrid(name);
+        this.imgs[name] = name === 'bg' ? img : keyOutBg(img, g.cols, g.rows);
         this.ready[name] = true;
         if (--left === 0) { this.done = true; cb && cb(); }
       };
@@ -89,10 +95,30 @@ const Assets = {
   },
 };
 
-/* Make the white sheet background transparent by flood-filling white inward
-   from all four edges, stopping at the sprites' dark outlines. Runs once per
-   sheet at load. Returns a canvas usable as a drawImage source. */
-function keyOutWhiteBg(img) {
+/* Determine a sheet's grid (columns × rows) from the FRAMES that reference it,
+   so each sprite's colour card can be keyed cell-by-cell. Defaults to 4×4 for
+   sheets that aren't referenced by FRAMES (e.g. raw UI sheets). */
+function sheetGrid(name) {
+  let cols = 0, rows = 0;
+  for (const k in FRAMES) {
+    const f = FRAMES[k];
+    if (f.sheet !== name) continue;
+    cols = Math.max(cols, Math.round(1 / f.fw));
+    rows = Math.max(rows, Math.round(1 / f.fh));
+  }
+  return { cols: cols || 4, rows: rows || 4 };
+}
+
+/* Per-cell background keyer. The uploaded sheets are flat RGB (no alpha): every
+   sprite sits on a uniform solid-colour card — white on some sheets, a vivid
+   saturated colour on others (cyan, magenta, lime), and a few dark (black,
+   navy). For each grid cell we find the card colour as the DOMINANT colour of
+   the cell's border ring, then flood-fill inward from the border removing pixels
+   within a colour tolerance of it — clamped to the cell so one card never bleeds
+   into its neighbour. The sprite's own outline differs from the flat card, so
+   the fill stops there and the sprite (including its interior colours) is kept.
+   Runs once per sheet at load. Returns a canvas usable as a drawImage source. */
+function keyOutBg(img, cols, rows) {
   const w = img.naturalWidth, h = img.naturalHeight;
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
@@ -100,28 +126,69 @@ function keyOutWhiteBg(img) {
   x.drawImage(img, 0, 0);
   let id;
   try { id = x.getImageData(0, 0, w, h); } catch (e) { return c; } // tainted: skip
-  const d = id.data, n = w * h;
-  if (d[3] === 0) return c; // already has a transparent background (baked) — skip
-  const white = i => d[i * 4] > 236 && d[i * 4 + 1] > 236 && d[i * 4 + 2] > 236;
-  const seen = new Uint8Array(n);
-  const stack = [];
-  for (let px = 0; px < w; px++) { stack.push(px, px + (h - 1) * w); }
-  for (let py = 0; py < h; py++) { stack.push(py * w, py * w + (w - 1)); }
-  while (stack.length) {
-    const i = stack.pop();
-    if (seen[i]) continue;
-    seen[i] = 1;
-    if (!white(i)) continue;
-    d[i * 4 + 3] = 0;
-    const px = i % w, py = (i / w) | 0;
-    if (px > 0) stack.push(i - 1);
-    if (px < w - 1) stack.push(i + 1);
-    if (py > 0) stack.push(i - w);
-    if (py < h - 1) stack.push(i + w);
+  const d = id.data;
+  cols = Math.max(1, cols | 0);
+  rows = Math.max(1, rows | 0);
+  const cw = w / cols, ch = h / rows;
+  const TOL2 = 78 * 78; // squared euclidean colour distance for "same as card"
+  for (let ry = 0; ry < rows; ry++) {
+    for (let rx = 0; rx < cols; rx++) {
+      keyCell(d, w,
+        Math.round(rx * cw), Math.round(ry * ch),
+        Math.round((rx + 1) * cw), Math.round((ry + 1) * ch), TOL2);
+    }
   }
   x.putImageData(id, 0, 0);
   return c;
 }
+
+/* Flood-fill one cell [x0,x1)×[y0,y1) inward from its border, clearing the card.
+   The card colour is the mode of the 2px-thick border ring (quantised to 5 bits
+   per channel) so a sprite that grazes the edge can't fool the sample. */
+function keyCell(d, w, x0, y0, x1, y1, tol2) {
+  if (x1 - x0 < 4 || y1 - y0 < 4) return;
+  const cellW = x1 - x0, cellH = y1 - y0;
+  // dominant border colour
+  const bins = new Map();
+  const tally = (px, py) => {
+    const i = (py * w + px) * 4;
+    if (d[i + 3] === 0) return;
+    const key = ((d[i] >> 3) << 10) | ((d[i + 1] >> 3) << 5) | (d[i + 2] >> 3);
+    bins.set(key, (bins.get(key) || 0) + 1);
+  };
+  for (let px = x0; px < x1; px++) { tally(px, y0); tally(px, y0 + 1); tally(px, y1 - 2); tally(px, y1 - 1); }
+  for (let py = y0; py < y1; py++) { tally(x0, py); tally(x0 + 1, py); tally(x1 - 2, py); tally(x1 - 1, py); }
+  if (!bins.size) return;
+  let best = -1, bestKey = 0;
+  for (const [k, v] of bins) { if (v > best) { best = v; bestKey = k; } }
+  const br = ((bestKey >> 10) & 31) * 8 + 4;
+  const bg = ((bestKey >> 5) & 31) * 8 + 4;
+  const bb = (bestKey & 31) * 8 + 4;
+  // flood inward from every border pixel, clearing card-coloured pixels
+  const seen = new Uint8Array(cellW * cellH);
+  const stack = [];
+  for (let px = x0; px < x1; px++) { stack.push(py2i(px, y0, w), py2i(px, y1 - 1, w)); }
+  for (let py = y0; py < y1; py++) { stack.push(py2i(x0, py, w), py2i(x1 - 1, py, w)); }
+  while (stack.length) {
+    const i = stack.pop();
+    const px = i % w, py = (i / w) | 0;
+    const li = (py - y0) * cellW + (px - x0);
+    if (seen[li]) continue;
+    seen[li] = 1;
+    const a = i * 4;
+    if (d[a + 3] !== 0) {
+      const dr = d[a] - br, dg = d[a + 1] - bg, db = d[a + 2] - bb;
+      if (dr * dr + dg * dg + db * db > tol2) continue; // hit the sprite — stop
+      d[a + 3] = 0;
+    }
+    if (px > x0) stack.push(i - 1);
+    if (px < x1 - 1) stack.push(i + 1);
+    if (py > y0) stack.push(i - w);
+    if (py < y1 - 1) stack.push(i + w);
+  }
+}
+
+function py2i(px, py, w) { return py * w + px; }
 
 function sheetW(im) { return im.naturalWidth || im.width; }
 function sheetH(im) { return im.naturalHeight || im.height; }
