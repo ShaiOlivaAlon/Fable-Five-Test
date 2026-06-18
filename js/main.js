@@ -94,8 +94,15 @@
   setFill();
   maybeReady();
 
-  // tap the loading screen once it's ready → unlocks audio and shows the menu
-  loadingEl.addEventListener('pointerdown', () => { if (loadReady) enter(); });
+  // tap once the loading screen is ready → unlocks audio and shows the menu.
+  // (listen on document: the .screen overlay is pointer-events:none, so a
+  // listener on it would never fire — the tap passes through to the page.)
+  const onLoadTap = () => {
+    if (!loadReady) return;
+    document.removeEventListener('pointerdown', onLoadTap);
+    enter();
+  };
+  document.addEventListener('pointerdown', onLoadTap);
 
   // character / ship select on the title screen
   function drawShipThumb(cv, key) {
