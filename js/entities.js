@@ -129,6 +129,8 @@ class Player {
     Sfx.hurt();
     U.vibrate([60, 40, 60]);
     g.shake(14);
+    g.dda = Math.max(0.7, (g.dda || 1) - 0.12); // taking hits → ease off
+    g.hitFreeWave = false;
     if (typeof Comics !== 'undefined') Comics.say('hit', this.x, this.y, 0.5);
     g.flash('rgba(255,40,60,0.25)');
     Particles.explosion(this.x, this.y, '#ff3b5c', 1.1);

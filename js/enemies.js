@@ -66,7 +66,7 @@ class Enemy {
       if (this.spec.fire) {
         this.fireT -= dt;
         if (this.fireT <= 0) {
-          this.fireT = this.spec.fire * U.rand(0.8, 1.25) * (Level.fireMul || 1);
+          this.fireT = this.spec.fire * U.rand(0.8, 1.25) * (Level.fireMul || 1) / (g.dda || 1);
           this.shoot(g);
         }
       } else if (Math.random() < dt * 0.05) {
@@ -112,7 +112,7 @@ class Enemy {
   }
 
   shoot(g, speed = 240) {
-    speed *= (Level.spdMul || 1); // faster shots in later worlds
+    speed *= (Level.spdMul || 1) * (0.85 + 0.25 * (g.dda || 1)); // world + adaptive difficulty
     const a = U.angTo(this.x, this.y, g.player.x, g.player.y);
     g.ebullets.push({
       x: this.x, y: this.y + 8,

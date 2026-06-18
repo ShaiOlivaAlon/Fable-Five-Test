@@ -127,6 +127,7 @@ const Game = {
   player: null, boss: null,
   enemies: [], pbullets: [], ebullets: [], powerups: [], splats: [],
   paused: false,
+  dda: 1, hitFreeWave: true, kills: 0, // dynamic difficulty: >1 harder, <1 easier
   score: 0, dispScore: -1, combo: 0, comboT: 0, maxCombo: 0,
   shakeAmp: 0, hitstop: 0, beamY: -10,
   lastHp: -1, lastWeapon: '', lastBoost: '§', lastCombo: -1,
@@ -196,6 +197,9 @@ const Game = {
     this.lastWeapon = '';
     this.lastBoost = '§';
     this.lastCombo = -1;
+    this.dda = 1;
+    this.hitFreeWave = true;
+    this.kills = 0;
     this.paused = false;
     this.els['screen-title'].classList.add('hidden');
     this.els['screen-over'].classList.add('hidden');
@@ -465,7 +469,7 @@ const Game = {
         m.phase = 'live';
         this.enemies.push(m);
       }
-    } else if (Math.random() < 0.13) {
+    } else if (Math.random() < 0.13 * (2 - this.dda)) { // struggling players get more drops
       this.powerups.push(new PowerUp(e.x, e.y, U.pick(['shield', 'over', 'mult', 'repair'])));
     }
     this.kills = (this.kills || 0) + 1; // for adaptive difficulty
@@ -473,6 +477,8 @@ const Game = {
     if (!this.boss && Level.queue && Level.queue.length === 0 && this.enemies.length <= 1 &&
         Level.waveIdx >= 0 && !Level.bossSpawned) {
       Comics.say('clear', this.LW / 2, this.LH * 0.34, 0.55);
+      if (this.hitFreeWave) this.dda = Math.min(1.4, this.dda + 0.07); // cleared untouched → ramp up
+      this.hitFreeWave = true;
     }
   },
 
