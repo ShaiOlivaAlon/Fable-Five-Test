@@ -508,6 +508,11 @@ const Game = {
     this.combo++;
     this.comboT = 2;
     this.maxCombo = Math.max(this.maxCombo, this.combo);
+    if (this.combo % 5 === 0) { // combo milestone pop
+      this.flash('rgba(255,216,77,0.16)');
+      Sfx.weaponUp();
+      this.shake(4);
+    }
     const gain = Math.round((e.spec.score + Math.min(this.combo, 10) * 10) * this.player.mult);
     this.score += gain;
     Popups.spawn(e.x, e.y, '+' + gain, this.player.mult > 1 ? '#c86bff' : '#d8ffc0', 13);
