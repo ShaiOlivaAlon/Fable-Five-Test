@@ -31,10 +31,10 @@ const Game = {
   W: 0, H: 0, scale: 1, LW: 420, LH: 800,
   state: 'title', time: 0,
   SHIPS: [
-    { key: 'player', name: 'PIZZA' },
-    { key: 'ship_burger', name: 'BURGER' },
-    { key: 'ship_banana', name: 'BANANA' },
-    { key: 'ship_pickle', name: 'PICKLE' },
+    { key: 'player',      name: 'PIZZA' },
+    { key: 'ship_condom', name: 'CONDOM' },
+    { key: 'ship_beer',   name: 'BEER' },
+    { key: 'ship_coffee', name: 'LATTE' },
   ],
   selectedShipKey: 'player',
   player: null, boss: null,
@@ -42,6 +42,7 @@ const Game = {
   score: 0, dispScore: -1, combo: 0, comboT: 0, maxCombo: 0,
   shakeAmp: 0, hitstop: 0, beamY: -10,
   lastHp: -1, lastWeapon: '', lastBoost: '§', lastCombo: -1,
+  waveSignT: 0, waveSignKey: '',
   els: {},
 
   init(canvas) {
@@ -135,6 +136,9 @@ const Game = {
     b.classList.remove('hidden', 'show');
     void b.offsetWidth;
     b.classList.add('show');
+    const waveMap = { 'WAVE 1': 'wave1', 'WAVE 2': 'wave2', 'WAVE 3': 'wave3', 'WAVE 4': 'wave4', 'WAVE 5': 'wave5', 'WAVE 6': 'wave6' };
+    this.waveSignKey = waveMap[main] || (warn ? 'boss_banner' : '');
+    this.waveSignT = 2.8;
   },
 
   update(dt) {
@@ -143,6 +147,7 @@ const Game = {
     Particles.update(dt);
     Popups.update(dt);
     if (this.shakeAmp > 0) this.shakeAmp = Math.max(0, this.shakeAmp - dt * 30);
+    if (this.waveSignT > 0) this.waveSignT = Math.max(0, this.waveSignT - dt);
     if (this.state !== 'playing') { Input.consume(); return; }
 
     const p = this.player;
@@ -505,6 +510,19 @@ const Game = {
     for (const b of this.ebullets) drawEnemyBullet(ctx, b, this.time);
     if (this.state === 'playing' && this.player.alive) this.player.draw(ctx);
     Particles.draw(ctx);
+    // wave sign sprite overlay
+    if (this.waveSignT > 0 && this.waveSignKey) {
+      const f = FRAMES[this.waveSignKey];
+      if (f && Assets.ok(f.sheet)) {
+        ctx.save();
+        ctx.translate(this.LW / 2, this.LH * 0.38);
+        const elapsed = 2.8 - this.waveSignT;
+        const alpha = Math.min(1, elapsed / 0.25) * Math.min(1, this.waveSignT / 0.35);
+        ctx.globalAlpha = alpha;
+        SPR.local(ctx, this.waveSignKey, this.time, 2.0);
+        ctx.restore();
+      }
+    }
     Popups.draw(ctx);
   },
 

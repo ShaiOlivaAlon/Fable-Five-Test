@@ -9,12 +9,14 @@
    /assets. If a sheet is missing or still loading, every draw call falls back
    to the procedural art, so the game always runs.
 
-   To enable the painted art, drop these files into /assets (see assets/README):
-     items.png        — pizza boxes, toilets, bananas, sprays, socks, icons
-     creatures.png    — "ENEMY CREATURES" sheet (jars, bags, saucers, ...)
-     projectiles.png  — "PROJECTILES" sheet (pizza, TP, sponge, slime, beams)
-     enemies.png      — animated enemy strips + the BOSSES row
-     bg.png           — the tall vertical psychedelic background
+   To enable the painted art, drop these files into /assets:
+     pizza.png, condom.png, beer.png, coffee.png  — player ships
+     magazine.png, coin.png, pickle.png, yogamat.png, toilet.png — enemies
+     cake.png  — boss
+     unicorn.png, bag.png, heart.png — special / pickups
+     waves.png, healthbar.png, weaponcards.png, slimenums.png, slimegun.png — UI
+     bullet.png, hit.png, rainbow.png, blood.png, poop.png, yellow.png — FX
+     bg.png  — the tall vertical psychedelic background
 
    FRAMES coordinates are NORMALISED (0..1 of each sheet's width/height) so they
    can be authored by eye from the reference images and stay resolution
@@ -24,12 +26,31 @@
 
 const Assets = {
   SHEETS: {
-    items: 'assets/items.png',
-    creatures: 'assets/creatures.png',
-    projectiles: 'assets/projectiles.png',
-    enemies: 'assets/enemies.png',
-    ui: 'assets/ui.png',
     bg: 'assets/bg.png',
+    pizza: 'assets/pizza.png',
+    condom: 'assets/condom.png',
+    beer: 'assets/beer.png',
+    coffee: 'assets/coffee.png',
+    magazine: 'assets/magazine.png',
+    coin: 'assets/coin.png',
+    pickle: 'assets/pickle.png',
+    yogamat: 'assets/yogamat.png',
+    toilet: 'assets/toilet.png',
+    cake: 'assets/cake.png',
+    unicorn: 'assets/unicorn.png',
+    bag: 'assets/bag.png',
+    heart: 'assets/heart.png',
+    waves: 'assets/waves.png',
+    healthbar: 'assets/healthbar.png',
+    weaponcards: 'assets/weaponcards.png',
+    slimenums: 'assets/slimenums.png',
+    slimegun: 'assets/slimegun.png',
+    bullet: 'assets/bullet.png',
+    hit: 'assets/hit.png',
+    rainbow: 'assets/rainbow.png',
+    blood: 'assets/blood.png',
+    poop: 'assets/poop.png',
+    yellow: 'assets/yellow.png',
   },
 
   imgs: {},
@@ -102,40 +123,107 @@ function sheetH(im) { return im.naturalHeight || im.height; }
 /* Per-sprite frame table. Each entry:
      sheet : which SHEETS image
      fx,fy : normalised top-left of the FIRST frame
-     fw,fh : normalised size of one frame
+     fw,fh : normalised size of one frame (fw=0.25 for 4-col sheets)
      n     : number of horizontal frames in the strip
      fps   : animation speed (0 = static, show frame 0)
      h     : desired on-screen height in world units (width follows aspect)
-   Coordinates are best-guess from the reference sheets — calibrate here. */
+   All 4×4 sheets: row 0=idle, row 1=attack, row 2=hurt, row 3=death (fh=0.25 each)
+   toilet/waves sheets use 5 rows (fh=0.2 each). */
 const FRAMES = {
-  // ---- enemies.png : measured row y-bands r1 .096-.225 r2 .278-.413 r3 .456-.565
-  //      r4 .617-.723 r5(boss) .759-.945 ; bands are generous, slicer trims tight ----
-  player:        { sheet: 'enemies', fx: 0.344, fy: 0.090, fw: 0.0610, fh: 0.142, n: 5, fps: 10, h: 96 }, // pizza
-  enemy_drone:   { sheet: 'enemies', fx: 0.012, fy: 0.090, fw: 0.0632, fh: 0.142, n: 5, fps: 8,  h: 64 }, // burger
-  enemy_sentry:  { sheet: 'enemies', fx: 0.016, fy: 0.450, fw: 0.0612, fh: 0.122, n: 5, fps: 6,  h: 80 }, // toilet
-  enemy_splitter:{ sheet: 'enemies', fx: 0.674, fy: 0.450, fw: 0.0755, fh: 0.122, n: 4, fps: 8,  h: 66 }, // meatball
-  enemy_mite:    { sheet: 'enemies', fx: 0.675, fy: 0.611, fw: 0.0723, fh: 0.118, n: 4, fps: 10, h: 46 }, // virus
-  enemy_diver:   { sheet: 'enemies', fx: 0.014, fy: 0.272, fw: 0.0524, fh: 0.148, n: 6, fps: 12, h: 64 }, // banana
-  boss:          { sheet: 'enemies', fx: 0.400, fy: 0.753, fw: 0.165,  fh: 0.198, n: 1, fps: 0,  h: 280 }, // toilet king
+  // ---- player ships (pizza.png 4×4) ----
+  player:              { sheet: 'pizza',   fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 96 },
+  player_shoot:        { sheet: 'pizza',   fx: 0, fy: 0.25, fw: 0.25, fh: 0.25, n: 4, fps: 12, h: 96 },
+  player_hurt:         { sheet: 'pizza',   fx: 0, fy: 0.50, fw: 0.25, fh: 0.25, n: 4, fps: 10, h: 96 },
+  player_death:        { sheet: 'pizza',   fx: 0, fy: 0.75, fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 96 },
 
-  // selectable player ships (reuse the enemies-sheet strips, player-sized)
-  ship_burger:   { sheet: 'enemies', fx: 0.012, fy: 0.090, fw: 0.0632, fh: 0.142, n: 5, fps: 10, h: 96 },
-  ship_banana:   { sheet: 'enemies', fx: 0.014, fy: 0.272, fw: 0.0524, fh: 0.148, n: 6, fps: 12, h: 96 },
-  ship_pickle:   { sheet: 'enemies', fx: 0.678, fy: 0.090, fw: 0.0582, fh: 0.142, n: 5, fps: 10, h: 96 },
+  // ---- alt ships (condom.png 4×4) ----
+  ship_condom:         { sheet: 'condom',  fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 96 },
+  ship_condom_shoot:   { sheet: 'condom',  fx: 0, fy: 0.25, fw: 0.25, fh: 0.25, n: 4, fps: 12, h: 96 },
+  ship_condom_hurt:    { sheet: 'condom',  fx: 0, fy: 0.50, fw: 0.25, fh: 0.25, n: 4, fps: 10, h: 96 },
+  ship_condom_death:   { sheet: 'condom',  fx: 0, fy: 0.75, fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 96 },
 
-  // ---- projectiles.png : measured rows r1 .103-.228 r2 .307-.388 r5 .838-.925 ----
-  bullet_pulse:  { sheet: 'projectiles', fx: 0.018, fy: 0.100, fw: 0.0486, fh: 0.135, n: 5, fps: 14, h: 30 }, // pizza slices
-  bullet_scatter:{ sheet: 'projectiles', fx: 0.348, fy: 0.303, fw: 0.0690, fh: 0.092, n: 4, fps: 14, h: 20 }, // slime balls
-  bullet_missile:{ sheet: 'projectiles', fx: 0.828, fy: 0.834, fw: 0.0740, fh: 0.095, n: 1, fps: 0,  h: 24 }, // fish
+  // ---- alt ships (beer.png 4×4) ----
+  ship_beer:           { sheet: 'beer',    fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 96 },
+  ship_beer_shoot:     { sheet: 'beer',    fx: 0, fy: 0.25, fw: 0.25, fh: 0.25, n: 4, fps: 12, h: 96 },
+  ship_beer_hurt:      { sheet: 'beer',    fx: 0, fy: 0.50, fw: 0.25, fh: 0.25, n: 4, fps: 10, h: 96 },
+  ship_beer_death:     { sheet: 'beer',    fx: 0, fy: 0.75, fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 96 },
 
-  // ---- items.png : power-up icon row y .683-.847 (pizza, TP, pod, battery, sponge) ----
-  pick_scatter:  { sheet: 'items', fx: 0.020, fy: 0.683, fw: 0.072, fh: 0.158, n: 1, fps: 0, h: 34 }, // pizza slice
-  pick_shield:   { sheet: 'items', fx: 0.123, fy: 0.683, fw: 0.066, fh: 0.158, n: 1, fps: 0, h: 34 }, // TP roll
-  pick_mult:     { sheet: 'items', fx: 0.220, fy: 0.683, fw: 0.076, fh: 0.158, n: 1, fps: 0, h: 34 }, // pod
-  pick_over:     { sheet: 'items', fx: 0.330, fy: 0.683, fw: 0.058, fh: 0.158, n: 1, fps: 0, h: 34 }, // battery
-  pick_repair:   { sheet: 'items', fx: 0.413, fy: 0.683, fw: 0.076, fh: 0.158, n: 1, fps: 0, h: 34 }, // sponge
-  pick_beam:     { sheet: 'items', fx: 0.330, fy: 0.683, fw: 0.058, fh: 0.158, n: 1, fps: 0, h: 34 }, // battery
-  pick_missile:  { sheet: 'items', fx: 0.020, fy: 0.683, fw: 0.072, fh: 0.158, n: 1, fps: 0, h: 34 }, // pizza slice
+  // ---- alt ships (coffee.png 4×4) ----
+  ship_coffee:         { sheet: 'coffee',  fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 96 },
+  ship_coffee_shoot:   { sheet: 'coffee',  fx: 0, fy: 0.25, fw: 0.25, fh: 0.25, n: 4, fps: 12, h: 96 },
+  ship_coffee_hurt:    { sheet: 'coffee',  fx: 0, fy: 0.50, fw: 0.25, fh: 0.25, n: 4, fps: 10, h: 96 },
+  ship_coffee_death:   { sheet: 'coffee',  fx: 0, fy: 0.75, fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 96 },
+
+  // ---- enemies (magazine.png = drone, 4×4) ----
+  enemy_drone:         { sheet: 'magazine', fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 64 },
+  enemy_drone_hurt:    { sheet: 'magazine', fx: 0, fy: 0.50, fw: 0.25, fh: 0.25, n: 4, fps: 10, h: 64 },
+  enemy_drone_death:   { sheet: 'magazine', fx: 0, fy: 0.75, fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 64 },
+
+  // ---- enemies (coin.png = sentry, 4×4) ----
+  enemy_sentry:        { sheet: 'coin',    fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 80 },
+  enemy_sentry_hurt:   { sheet: 'coin',    fx: 0, fy: 0.50, fw: 0.25, fh: 0.25, n: 4, fps: 10, h: 80 },
+  enemy_sentry_death:  { sheet: 'coin',    fx: 0, fy: 0.75, fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 80 },
+
+  // ---- enemies (pickle.png = splitter, 4×4) ----
+  enemy_splitter:      { sheet: 'pickle',  fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 66 },
+  enemy_splitter_hurt: { sheet: 'pickle',  fx: 0, fy: 0.50, fw: 0.25, fh: 0.25, n: 4, fps: 10, h: 66 },
+  enemy_splitter_death:{ sheet: 'pickle',  fx: 0, fy: 0.75, fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 66 },
+
+  // ---- enemies (yogamat.png = mite, 4×4) ----
+  enemy_mite:          { sheet: 'yogamat', fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 46 },
+  enemy_mite_hurt:     { sheet: 'yogamat', fx: 0, fy: 0.50, fw: 0.25, fh: 0.25, n: 4, fps: 10, h: 46 },
+  enemy_mite_death:    { sheet: 'yogamat', fx: 0, fy: 0.75, fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 46 },
+
+  // ---- enemies (toilet.png = diver, 5 rows, fh=0.2) ----
+  enemy_diver:         { sheet: 'toilet',  fx: 0, fy: 0,   fw: 0.25, fh: 0.2, n: 4, fps: 8,  h: 64 },
+  enemy_diver_hurt:    { sheet: 'toilet',  fx: 0, fy: 0.6, fw: 0.25, fh: 0.2, n: 4, fps: 10, h: 64 },
+  enemy_diver_death:   { sheet: 'toilet',  fx: 0, fy: 0.8, fw: 0.25, fh: 0.2, n: 4, fps: 8,  h: 64 },
+
+  // ---- boss (cake.png 4×4) ----
+  boss:                { sheet: 'cake',    fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 260 },
+  boss_shoot:          { sheet: 'cake',    fx: 0, fy: 0.25, fw: 0.25, fh: 0.25, n: 4, fps: 12, h: 260 },
+  boss_hurt:           { sheet: 'cake',    fx: 0, fy: 0.50, fw: 0.25, fh: 0.25, n: 4, fps: 10, h: 260 },
+  boss_death:          { sheet: 'cake',    fx: 0, fy: 0.75, fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 260 },
+
+  // ---- pickups (bag.png 4×4, different rows for variety) ----
+  pick_scatter:        { sheet: 'bag',     fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 48 },
+  pick_shield:         { sheet: 'bag',     fx: 0, fy: 0.25, fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 48 },
+  pick_mult:           { sheet: 'bag',     fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 48 },
+  pick_over:           { sheet: 'bag',     fx: 0, fy: 0.25, fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 48 },
+  pick_repair:         { sheet: 'bag',     fx: 0, fy: 0.50, fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 48 },
+  pick_beam:           { sheet: 'bag',     fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 48 },
+  pick_missile:        { sheet: 'bag',     fx: 0, fy: 0.25, fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 48 },
+
+  // ---- projectiles (bullet.png 4×4) ----
+  bullet_pulse:        { sheet: 'bullet',  fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 14, h: 30 },
+  bullet_scatter:      { sheet: 'bullet',  fx: 0, fy: 0.25, fw: 0.25, fh: 0.25, n: 4, fps: 14, h: 20 },
+  bullet_missile:      { sheet: 'bullet',  fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 1, fps: 0,  h: 24 },
+
+  // ---- effects ----
+  slime_hit:           { sheet: 'hit',     fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 16, h: 80 },
+  rainbow_exp:         { sheet: 'rainbow', fx: 0, fy: 0,    fw: 0.25, fh: 0.333, n: 4, fps: 14, h: 100 },
+  blood_splat:         { sheet: 'blood',   fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 14, h: 80 },
+  poop_splat:          { sheet: 'poop',    fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 12, h: 60 },
+  yellow_spl:          { sheet: 'yellow',  fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 12, h: 80 },
+
+  // ---- wave signs (waves.png 5 rows, fh=0.2) ----
+  wave1:               { sheet: 'waves',   fx: 0,    fy: 0,   fw: 0.25, fh: 0.2, n: 4, fps: 8,  h: 60 },
+  wave2:               { sheet: 'waves',   fx: 0,    fy: 0.2, fw: 0.25, fh: 0.2, n: 4, fps: 8,  h: 60 },
+  wave3:               { sheet: 'waves',   fx: 0,    fy: 0.4, fw: 0.25, fh: 0.2, n: 4, fps: 8,  h: 60 },
+  wave4:               { sheet: 'waves',   fx: 0,    fy: 0.6, fw: 0.25, fh: 0.2, n: 1, fps: 0,  h: 60 },
+  wave5:               { sheet: 'waves',   fx: 0.25, fy: 0.6, fw: 0.25, fh: 0.2, n: 1, fps: 0,  h: 60 },
+  wave6:               { sheet: 'waves',   fx: 0.50, fy: 0.6, fw: 0.25, fh: 0.2, n: 1, fps: 0,  h: 60 },
+  boss_banner:         { sheet: 'waves',   fx: 0,    fy: 0.8, fw: 0.25, fh: 0.2, n: 4, fps: 8,  h: 60 },
+
+  // ---- UI ----
+  slime_gun:           { sheet: 'slimegun',    fx: 0, fy: 0, fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 36 },
+  weapon_card:         { sheet: 'weaponcards', fx: 0, fy: 0, fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 60 },
+  health_bar:          { sheet: 'healthbar',   fx: 0, fy: 0, fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 40 },
+
+  // ---- special (unicorn.png 4×4) ----
+  enemy_unicorn:       { sheet: 'unicorn', fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 120 },
+  enemy_unicorn_hurt:  { sheet: 'unicorn', fx: 0, fy: 0.50, fw: 0.25, fh: 0.25, n: 4, fps: 10, h: 120 },
+  enemy_unicorn_death: { sheet: 'unicorn', fx: 0, fy: 0.75, fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 120 },
 };
 
 /* Per-key cache of exact frame rectangles. Because the sheets now have

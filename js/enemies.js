@@ -173,9 +173,15 @@ function googly(ctx, x, y, r, px, py) {
 }
 
 function drawEnemyShape(ctx, e, t, flash) {
-  // painted enemy sprite if its sheet is loaded
-  if (SPR.local(ctx, 'enemy_' + e.type, t + e.ph)) {
-    if (flash) SPR.flash(ctx, 'enemy_' + e.type);
+  // painted enemy sprite — try hurt/death variant first, then base
+  const _eBase = 'enemy_' + e.type;
+  const _eKey = flash && SPR.ok(_eBase + '_hurt') ? _eBase + '_hurt' : _eBase;
+  if (SPR.local(ctx, _eKey, t + e.ph)) {
+    if (flash) SPR.flash(ctx, _eKey);
+    return;
+  }
+  if (_eKey !== _eBase && SPR.local(ctx, _eBase, t + e.ph)) {
+    if (flash) SPR.flash(ctx, _eBase);
     return;
   }
   const c = e.spec.color;
@@ -609,9 +615,12 @@ class Boss {
       ctx.globalAlpha = 0.85 + Math.sin(t * 40) * 0.15;
     }
 
-    // painted boss sprite if its sheet is loaded
-    if (SPR.local(ctx, 'boss', t)) {
-      if (this.flash > 0) SPR.flash(ctx, 'boss');
+    // painted boss sprite — pick state-appropriate animation row
+    const _bKey = this.state === 'dying' && SPR.ok('boss_death') ? 'boss_death' :
+                  (this.flash > 0 && SPR.ok('boss_hurt')) ? 'boss_hurt' :
+                  (this.beamState > 0 && SPR.ok('boss_shoot')) ? 'boss_shoot' : 'boss';
+    if (SPR.local(ctx, _bKey, t) || (_bKey !== 'boss' && SPR.local(ctx, 'boss', t))) {
+      if (this.flash > 0) SPR.flash(ctx, _bKey);
       ctx.restore();
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
@@ -892,7 +901,7 @@ class Boss {
   }
 }
 
-/* Demo level: 5 choreographed waves, then the Great Toilet Overlord. */
+/* Demo level: 5 choreographed waves, then the Great Cake Overlord. */
 const Level = {
   waves: [], waveIdx: -1, queue: [], betweenT: 0, bossSpawned: false, done: false,
 
@@ -1027,7 +1036,7 @@ const Level = {
           this.betweenT = 1.6;
         } else if (!this.bossSpawned) {
           this.bossSpawned = true;
-          g.banner('⚠ TOILET OVERLORD ⚠', 'something huge just clogged the sector', true);
+          g.banner('⚠ CAKE OVERLORD ⚠', 'something huge just clogged the sector', true);
           Sfx.alarm();
           this.queue = [{ d: 2.2, boss: true }];
         }

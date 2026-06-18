@@ -163,7 +163,10 @@ class Player {
     ctx.globalCompositeOperation = 'source-over';
 
     // painted sprite (selected ship) takes over the hull if its sheet is loaded
-    if (SPR.local(ctx, this.g.selectedShipKey || 'player', t)) {
+    const _shipBase = this.g.selectedShipKey || 'player';
+    const _shipHurt = _shipBase + '_hurt';
+    const _shipKey = (this.inv > 0.2 && SPR.ok(_shipHurt)) ? _shipHurt : _shipBase;
+    if (SPR.local(ctx, _shipKey, t)) {
       ctx.restore();
       // overdrive aura + shield still drawn over the sprite below
       if (this.over > 0) {
