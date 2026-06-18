@@ -212,7 +212,27 @@ h1.green {
   50% { opacity: .85; transform: rotate(1.2deg) scale(1.015); }
 }
 .sub { color: rgba(220,255,190,.8); letter-spacing: 4px; font-size: 12px; margin-bottom: 18px; text-transform: uppercase; }
-.charsel-label { color: rgba(170,230,140,.7); font-size: 11px; letter-spacing: 3px; margin-bottom: 12px; }
+.charsel-label { color: rgba(170,230,140,.7); font-size: 11px; letter-spacing: 3px; margin-bottom: 10px; }
+/* character select: big animated preview + name + selectable chips */
+#charbig {
+  width: 132px; height: 132px; display: block; margin: 0 auto;
+  filter: drop-shadow(0 6px 14px rgba(0,0,0,.5));
+}
+#charname {
+  font-size: 22px; font-weight: 800; letter-spacing: 4px; color: #eaffd6;
+  text-shadow: 0 0 14px #8aff3a, 0 2px 0 #3a6e14; margin: 2px 0 12px;
+}
+.charchips { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; max-width: 340px; margin: 0 auto 20px; }
+.charchip {
+  pointer-events: auto; cursor: pointer; font: inherit; font-weight: 700; font-size: 12px; letter-spacing: 1px;
+  padding: 8px 12px; border-radius: 20px; border: 2px solid rgba(138,255,58,.28);
+  background: rgba(14,8,22,.55); color: rgba(210,255,180,.75); transition: all .12s;
+}
+.charchip:hover { border-color: rgba(138,255,58,.55); }
+.charchip.on {
+  border-color: #8aff3a; background: rgba(40,70,10,.6); color: #eaffd6;
+  box-shadow: 0 0 14px rgba(138,255,58,.55); transform: translateY(-2px);
+}
 .charsel {
   display: flex; gap: 10px; justify-content: center; align-items: stretch;
   margin: 0 auto 22px; flex-wrap: wrap; max-width: 340px;

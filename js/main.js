@@ -104,55 +104,45 @@
   };
   document.addEventListener('pointerdown', onLoadTap);
 
-  // character / ship select on the title screen — live animated icons + names
-  const shipThumbs = [];
-  const THUMB = 72;
-  function drawShipThumb(cv, key, t, sel) {
-    const x = cv.getContext('2d');
+  // character select: one big animated ship preview + name + selectable chips
+  const charBig = document.getElementById('charbig');
+  const charName = document.getElementById('charname');
+  function drawCharPreview(t) {
+    const x = charBig.getContext('2d');
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    if (cv.width !== THUMB * dpr) { cv.width = THUMB * dpr; cv.height = THUMB * dpr; }
+    const S = 132;
+    if (charBig.width !== S * dpr) { charBig.width = S * dpr; charBig.height = S * dpr; }
     x.setTransform(dpr, 0, 0, dpr, 0, 0);
-    x.clearRect(0, 0, THUMB, THUMB);
+    x.clearRect(0, 0, S, S);
     x.save();
-    x.translate(THUMB / 2, THUMB / 2 + 3 + Math.sin(t * 3 + key.length) * 1.8); // gentle idle bob
-    const f = FRAMES[key];
+    x.translate(S / 2, S / 2 + Math.sin(t * 2) * 5); // gentle hover
+    const key = Game.selectedShipKey, f = FRAMES[key];
     if (f && Assets.ok(f.sheet)) {
-      SPR.local(x, key, t, (sel ? 66 : 56) / f.h); // animate through the strip; selected = bigger
+      SPR.local(x, key, t, 116 / f.h);
     } else {
-      x.fillStyle = sel ? '#8aff3a' : '#ffb347';
-      x.beginPath();
-      x.moveTo(0, -22); x.lineTo(18, 16); x.lineTo(-18, 16); x.closePath();
-      x.fill();
+      x.fillStyle = '#ffb347';
+      x.beginPath(); x.moveTo(0, -40); x.lineTo(32, 30); x.lineTo(-32, 30); x.closePath(); x.fill();
     }
     x.restore();
-  }
-
-  function animateThumbs(t) {
-    for (const th of shipThumbs) drawShipThumb(th.cv, th.key, t, th.opt.classList.contains('selected'));
+    const ship = Game.SHIPS.find(s => s.key === key);
+    if (ship && charName.textContent !== ship.name) charName.textContent = ship.name;
   }
 
   function buildCharSelect() {
     const wrap = document.getElementById('charsel');
     if (!wrap || wrap.childElementCount) return;
     Game.SHIPS.forEach((s) => {
-      const opt = document.createElement('div');
-      opt.className = 'charopt' + (s.key === Game.selectedShipKey ? ' selected' : '');
-      const cv = document.createElement('canvas');
-      const lbl = document.createElement('div');
-      lbl.className = 'charlbl';
-      lbl.textContent = s.name;
-      opt.appendChild(cv);
-      opt.appendChild(lbl);
-      opt.addEventListener('click', () => {
+      const chip = document.createElement('button');
+      chip.className = 'charchip' + (s.key === Game.selectedShipKey ? ' on' : '');
+      chip.textContent = s.name;
+      chip.addEventListener('click', () => {
         Game.selectedShipKey = s.key;
-        for (const c of wrap.children) c.classList.remove('selected');
-        opt.classList.add('selected');
+        for (const c of wrap.children) c.classList.remove('on');
+        chip.classList.add('on');
         Sfx.init(); Sfx.resume(); Sfx.pickup();
         Sfx.music.play('theme'); // menu music
       });
-      wrap.appendChild(opt);
-      shipThumbs.push({ cv, key: s.key, opt });
-      drawShipThumb(cv, s.key, 0.1, s.key === Game.selectedShipKey);
+      wrap.appendChild(chip);
     });
   }
 
@@ -284,7 +274,7 @@
       else Game.update(dt);
     }
     Game.render();
-    if (!titleEl.classList.contains('hidden')) animateThumbs(Game.time); // live menu icons
+    if (!titleEl.classList.contains('hidden')) drawCharPreview(Game.time); // live menu preview
   }
   requestAnimationFrame(frame);
 })();
