@@ -430,10 +430,10 @@ const FRAMES = {
 const _rectCache = {};
 
 function sliceStrip(img, f, W, H) {
-  // Divide the strip into f.n uniform cells (the fx/fw spans are calibrated to
-  // the real frames), then tight-bbox the opaque pixels inside each cell. This
-  // trims empty margins and re-centres every frame, so internal transparent
-  // gaps in a sprite don't matter and frames never crop into their neighbours.
+  // Tight-bbox each cell, but ANCHOR every frame to its cell centre. The body
+  // stays put across frames and asymmetric attack frames (a cannon/beam jutting
+  // out) extend outward instead of shoving the whole sprite off-centre or
+  // blowing up the bounding box. Fixes the "cutting / not centred / glitching".
   const sx0 = Math.max(0, Math.round(f.fx * W));
   const sy0 = Math.max(0, Math.round(f.fy * H));
   const tw = Math.min(Math.round(f.fw * f.n * W), W - sx0);
@@ -446,8 +446,7 @@ function sliceStrip(img, f, W, H) {
   const d = x.getImageData(0, 0, tw, th).data; // throws if tainted -> caller falls back
   const A = 24;
   const cw = tw / f.n;
-  // per-cell opaque bounds
-  const bounds = [];
+  const rects = [];
   for (let i = 0; i < f.n; i++) {
     const cx0 = Math.floor(i * cw), cx1 = Math.floor((i + 1) * cw);
     let left = cx1, right = cx0 - 1, top = th, bot = -1;
@@ -462,30 +461,13 @@ function sliceStrip(img, f, W, H) {
         }
       }
     }
-    bounds.push({ cx0, cx1, left, right, top, bot, empty: right < left || bot < top });
-  }
-  const rects = [];
-  // Single full-height strips (the 8-frame enemy/boss sheets) use ONE shared crop
-  // window across every frame, so the character stays put and centred and the
-  // animation doesn't jitter/"split" when a frame adds a projectile or limb.
-  if (f.fh >= 0.99 && f.n > 1) {
-    let uL = Infinity, uR = -Infinity, uT = th, uB = -1, any = false;
-    for (const b of bounds) {
-      if (b.empty) continue;
-      any = true;
-      uL = Math.min(uL, b.left - b.cx0);
-      uR = Math.max(uR, b.right - b.cx0);
-      uT = Math.min(uT, b.top);
-      uB = Math.max(uB, b.bot);
-    }
-    if (!any) { uL = 0; uR = Math.floor(cw) - 1; uT = 0; uB = th - 1; }
-    const sw = Math.max(1, uR - uL + 1), sh = Math.max(1, uB - uT + 1);
-    for (let i = 0; i < f.n; i++) rects.push({ sx: sx0 + Math.floor(i * cw) + uL, sy: sy0 + uT, sw, sh });
-  } else {
-    for (const b of bounds) {
-      if (b.empty) rects.push({ sx: sx0 + b.cx0, sy: sy0, sw: b.cx1 - b.cx0, sh: th });
-      else rects.push({ sx: sx0 + b.left, sy: sy0 + b.top, sw: b.right - b.left + 1, sh: b.bot - b.top + 1 });
-    }
+    let lx, ty, sw, sh;
+    if (right < left || bot < top) { lx = cx0; ty = 0; sw = cx1 - cx0; sh = th; }
+    else { lx = left; ty = top; sw = right - left + 1; sh = bot - top + 1; }
+    // offset of this frame's centre from the cell centre (source px)
+    const ox = (lx + sw / 2) - (cx0 + (cx1 - cx0) / 2);
+    const oy = (ty + sh / 2) - th / 2;
+    rects.push({ sx: sx0 + lx, sy: sy0 + ty, sw, sh, ox, oy });
   }
   return rects;
 }
@@ -500,7 +482,7 @@ function frameRects(key) {
   if (!rects) {
     rects = [];
     for (let i = 0; i < f.n; i++) {
-      rects.push({ sx: (f.fx + i * f.fw) * W, sy: f.fy * H, sw: f.fw * W, sh: f.fh * H });
+      rects.push({ sx: (f.fx + i * f.fw) * W, sy: f.fy * H, sw: f.fw * W, sh: f.fh * H, ox: 0, oy: 0 });
     }
   }
   let refH = 0, refW = 0;
@@ -533,7 +515,7 @@ const SPR = {
     const img = Assets.imgs[f.sheet];
     const unit = (f.h * scale) / refH; // world px per source px, constant across frames
     const dw = r.sw * unit, dh = r.sh * unit;
-    ctx.drawImage(img, r.sx, r.sy, r.sw, r.sh, -dw / 2, -dh / 2, dw, dh);
+    ctx.drawImage(img, r.sx, r.sy, r.sw, r.sh, (r.ox || 0) * unit - dw / 2, (r.oy || 0) * unit - dh / 2, dw, dh);
     return true;
   },
 
@@ -548,7 +530,7 @@ const SPR = {
     const img = Assets.imgs[f.sheet];
     const unit = (f.h * scale) / refH;
     const dw = r.sw * unit, dh = r.sh * unit;
-    ctx.drawImage(img, r.sx, r.sy, r.sw, r.sh, -dw / 2, -dh / 2, dw, dh);
+    ctx.drawImage(img, r.sx, r.sy, r.sw, r.sh, (r.ox || 0) * unit - dw / 2, (r.oy || 0) * unit - dh / 2, dw, dh);
     return true;
   },
 
