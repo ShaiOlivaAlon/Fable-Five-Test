@@ -1,0 +1,14 @@
+{
+  "scores": [
+    { "name": "PIZZA_PILOT",  "score": 24800 },
+    { "name": "GROSS_MASTER", "score": 19650 },
+    { "name": "SNOT_LORD",    "score": 15200 },
+    { "name": "FART_NINJA",   "score": 12400 },
+    { "name": "BOOGER_KING",  "score": 9750 },
+    { "name": "STINK_QUEEN",  "score": 7600 },
+    { "name": "SLIME_ACE",    "score": 5900 },
+    { "name": "TOILET_PRO",   "score": 4200 },
+    { "name": "YUCK_BOT",     "score": 2800 },
+    { "name": "SPLAT_BABY",   "score": 1500 }
+  ]
+}

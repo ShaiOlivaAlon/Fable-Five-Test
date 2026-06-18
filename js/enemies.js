@@ -1008,6 +1008,40 @@ const Level = {
       waves.push({ name: 'WAVE 5', sub: 'last call before the big flush', list });
     }
 
+    // W6 — maximum gross: everything at once, faster timings
+    {
+      const list = [{ d: 0.2, gift: 'over' }];
+      // 4 splitters rapid-fire
+      for (let i = 0; i < 4; i++) {
+        list.push({ d: 0.3 + i * 0.5, e: () => new Enemy('splitter', {
+          from: { x: U.rand(50, LW - 50), y: -40 },
+          slot: { x: U.rand(60, LW - 60), y: U.rand(50, 100) }, dur: 0.95,
+        }) });
+      }
+      // 8 fast divers, tight overlap
+      for (let i = 0; i < 8; i++) {
+        list.push({ d: 0.5 + i * 0.32, e: () => new Enemy('diver', {
+          from: { x: i % 2 ? -30 : LW + 30, y: 36 + (i % 4) * 22 },
+          slot: { x: U.rand(60, LW - 60), y: 68 + (i % 3) * 28 }, dur: 0.85,
+          diveDelay: U.rand(0.2, 0.8),
+        }) });
+      }
+      // 3 sentries: flanks + centre
+      list.push({ d: 0.9,  e: () => new Enemy('sentry', { from: { x: 40,       y: -50 }, slot: { x: 82,        y: 96 }, dur: 1.2 }) });
+      list.push({ d: 1.1,  e: () => new Enemy('sentry', { from: { x: LW - 40,  y: -50 }, slot: { x: LW - 82,   y: 96 }, dur: 1.2 }) });
+      list.push({ d: 2.4,  e: () => new Enemy('sentry', { from: { x: cx,       y: -50 }, slot: { x: cx,        y: 136 }, dur: 1.2 }) });
+      // 2 late splitters to wreck any cleanup attempt
+      list.push({ d: 3.0, e: () => new Enemy('splitter', {
+        from: { x: U.rand(50, LW - 50), y: -40 },
+        slot: { x: U.rand(60, LW - 60), y: U.rand(60, 120) }, dur: 1.0,
+      }) });
+      list.push({ d: 3.8, e: () => new Enemy('splitter', {
+        from: { x: U.rand(50, LW - 50), y: -40 },
+        slot: { x: U.rand(60, LW - 60), y: U.rand(60, 120) }, dur: 1.0,
+      }) });
+      waves.push({ name: 'WAVE 6', sub: 'maximum gross — nothing held back!', list });
+    }
+
     return waves;
   },
 

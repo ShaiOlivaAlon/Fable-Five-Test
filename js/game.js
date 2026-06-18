@@ -1,5 +1,27 @@
 'use strict';
 
+/* global shared leaderboard — reads from scores.json in the repo (GitHub raw) */
+const GlobalScores = {
+  URL: 'https://raw.githubusercontent.com/shaiolivaalon/gemini-3-test/main/scores.json',
+  KEY: 'sg_gcache', TTL: 120000, MAX: 10,
+  cached: null,
+  load() {
+    try {
+      const c = JSON.parse(localStorage.getItem(this.KEY) || 'null');
+      if (c && c.ts && Date.now() - c.ts < this.TTL) { this.cached = c.scores; return Promise.resolve(c.scores); }
+    } catch (_) {}
+    return fetch(this.URL + '?_=' + Date.now())
+      .then(r => r.ok ? r.json() : { scores: [] })
+      .then(d => {
+        const scores = Array.isArray(d && d.scores) ? d.scores : [];
+        try { localStorage.setItem(this.KEY, JSON.stringify({ ts: Date.now(), scores })); } catch (_) {}
+        this.cached = scores;
+        return scores;
+      })
+      .catch(() => this.cached || []);
+  },
+};
+
 /* persistent local top-scores table */
 const HighScores = {
   KEY: 'sg_scores', MAX: 8,
@@ -55,8 +77,8 @@ const Game = {
       'bossbar', 'bossfill', 'banner', 'banner-main', 'banner-sub', 'flash',
       'screen-title', 'screen-over', 'screen-clear',
       'final-score', 'clear-score', 'clear-chain', 'best',
-      'hsentry-over', 'hsname-over', 'hssave-over', 'scores-over',
-      'hsentry-clear', 'hsname-clear', 'hssave-clear', 'scores-clear',
+      'hsentry-over', 'hsname-over', 'hssave-over', 'scores-over', 'gscores-over',
+      'hsentry-clear', 'hsname-clear', 'hssave-clear', 'scores-clear', 'gscores-clear',
     ];
     for (const id of ids) this.els[id] = document.getElementById(id);
     this.resize();
@@ -132,15 +154,16 @@ const Game = {
 
   banner(main, sub = '', warn = false) {
     const b = this.els.banner;
-    this.els['banner-main'].textContent = main;
+    const waveMap = { 'WAVE 1': 'wave1', 'WAVE 2': 'wave2', 'WAVE 3': 'wave3', 'WAVE 4': 'wave4', 'WAVE 5': 'wave5', 'WAVE 6': 'wave6' };
+    this.waveSignKey = waveMap[main] || (warn ? 'boss_alert' : '');
+    // sprite art already contains the wave/boss label — hide HTML text so it doesn't double up
+    this.els['banner-main'].textContent = this.waveSignKey ? '' : main;
     this.els['banner-sub'].textContent = sub;
     b.classList.toggle('warn', warn);
     b.classList.remove('hidden', 'show');
     void b.offsetWidth;
     b.classList.add('show');
-    const waveMap = { 'WAVE 1': 'wave1', 'WAVE 2': 'wave2', 'WAVE 3': 'wave3', 'WAVE 4': 'wave4', 'WAVE 5': 'wave5', 'WAVE 6': 'wave6' };
-    this.waveSignKey = waveMap[main] || (warn ? 'boss_banner' : '');
-    this.waveSignT = 2.8;
+    this.waveSignT = warn ? 3.5 : 2.8;
   },
 
   update(dt) {
@@ -418,8 +441,9 @@ const Game = {
   showHighScores(suffix) {
     const entry = this.els['hsentry-' + suffix];
     const board = this.els['scores-' + suffix];
+    const gboard = this.els['gscores-' + suffix];
     const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    const render = (hi) => {
+    const renderLocal = (hi) => {
       const list = HighScores.load();
       board.innerHTML = list.length
         ? list.map((e, i) => `<div class="hsrow${i === hi ? ' me' : ''}"><span class="hsrank">${i + 1}</span><span class="hsnm">${esc(e.name)}</span><span class="hssc">${e.score.toLocaleString()}</span></div>`).join('')
@@ -429,13 +453,13 @@ const Game = {
       entry.classList.remove('hidden');
       const input = this.els['hsname-' + suffix];
       input.value = '';
-      render(-1);
+      renderLocal(-1);
       const submit = () => {
         if (entry.classList.contains('hidden')) return;
         const name = (input.value.trim() || 'YOU').slice(0, 12).toUpperCase();
         const idx = HighScores.add(name, this.score);
         entry.classList.add('hidden');
-        render(idx);
+        renderLocal(idx);
         Sfx.weaponUp();
       };
       this.els['hssave-' + suffix].onclick = submit;
@@ -443,7 +467,16 @@ const Game = {
       setTimeout(() => { try { input.focus(); } catch (e) { /* ignore */ } }, 120);
     } else {
       entry.classList.add('hidden');
-      render(-1);
+      renderLocal(-1);
+    }
+    // global hall of fame (async fetch)
+    if (gboard) {
+      gboard.innerHTML = '<div class="hsrow"><span class="hsnm hs-loading">fetching hall of grossness…</span></div>';
+      GlobalScores.load().then(scores => {
+        gboard.innerHTML = scores.length
+          ? scores.slice(0, GlobalScores.MAX).map((e, i) => `<div class="hsrow"><span class="hsrank">${i + 1}</span><span class="hsnm">${esc(e.name)}</span><span class="hssc">${e.score.toLocaleString()}</span></div>`).join('')
+          : '<div class="hsrow"><span class="hsnm hs-loading">no global scores yet</span></div>';
+      });
     }
   },
 
