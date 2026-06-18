@@ -415,7 +415,7 @@ const Game = {
   gameOver() {
     if (this.state !== 'playing') return;
     this.state = 'over';
-    Sfx.music.stop();
+    Sfx.music.play('gameover');
     this.saveBest();
     this.els['final-score'].textContent = this.score.toLocaleString();
     this.els['screen-over'].classList.remove('hidden');
@@ -427,8 +427,8 @@ const Game = {
   levelClear() {
     if (this.state !== 'playing') return;
     this.state = 'clear';
-    Sfx.music.stop();
     Sfx.jingle();
+    Sfx.music.play('theme');
     this.saveBest();
     this.els['clear-score'].textContent = this.score.toLocaleString();
     this.els['clear-chain'].textContent = '×' + this.maxCombo;

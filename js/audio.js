@@ -3,6 +3,7 @@
 /* All audio is synthesized live with the Web Audio API — no asset files. */
 const Sfx = {
   ctx: null, master: null, sfxGain: null, musGain: null, noiseBuf: null,
+  muted: false, baseVol: 0.6,
 
   init() {
     if (this.ctx) return;
@@ -10,7 +11,7 @@ const Sfx = {
     if (!AC) return;
     const ctx = (this.ctx = new AC());
     this.master = ctx.createGain();
-    this.master.gain.value = 0.6;
+    this.master.gain.value = this.muted ? 0 : this.baseVol;
     this.master.connect(ctx.destination);
     this.sfxGain = ctx.createGain();
     this.sfxGain.connect(this.master);
@@ -24,6 +25,21 @@ const Sfx = {
   },
 
   resume() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); },
+
+  /* one global mute switch covering SFX (master gain) and the MP3 music
+     (element.muted), persisted so the choice survives reloads */
+  loadMutePref() {
+    try { this.muted = localStorage.getItem('sg_muted') === '1'; } catch (e) { /* private */ }
+    return this.muted;
+  },
+  setMuted(m) {
+    this.muted = !!m;
+    if (this.master) this.master.gain.value = this.muted ? 0 : this.baseVol;
+    this.music.applyMute();
+    try { localStorage.setItem('sg_muted', this.muted ? '1' : '0'); } catch (e) { /* private */ }
+    return this.muted;
+  },
+  toggleMute() { return this.setMuted(!this.muted); },
 
   tone(o) {
     if (!this.ctx) return;
@@ -105,82 +121,48 @@ const Sfx = {
     [392, 523, 659, 784, 1047].forEach((f, i) => this.tone({ type: 'triangle', f0: f, dur: 0.22, vol: 0.09, delay: i * 0.11 }));
   },
 
-  bassNote(f, t, dur) {
-    const ctx = this.ctx;
-    const o = ctx.createOscillator();
-    o.type = 'sawtooth';
-    o.frequency.value = f;
-    const filt = ctx.createBiquadFilter();
-    filt.type = 'lowpass';
-    filt.frequency.value = 420;
-    filt.Q.value = 4;
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(0.16, t + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(filt).connect(g).connect(this.musGain);
-    o.start(t);
-    o.stop(t + dur + 0.05);
-  },
-  kick(t) {
-    const ctx = this.ctx;
-    const o = ctx.createOscillator();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(130, t);
-    o.frequency.exponentialRampToValueAtTime(38, t + 0.12);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(0.45, t + 0.004);
-    g.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
-    o.connect(g).connect(this.musGain);
-    o.start(t);
-    o.stop(t + 0.2);
-  },
-  hat(t, open) {
-    const ctx = this.ctx;
-    const src = ctx.createBufferSource();
-    src.buffer = this.noiseBuf;
-    src.loop = true;
-    const f = ctx.createBiquadFilter();
-    f.type = 'highpass';
-    f.frequency.value = 6000;
-    const g = ctx.createGain();
-    const dur = open ? 0.12 : 0.04;
-    g.gain.setValueAtTime(0.05, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    src.connect(f).connect(g).connect(this.musGain);
-    src.start(t);
-    src.stop(t + dur + 0.02);
-  },
-
-  /* dark synthwave loop: scheduled ahead of time in small chunks */
+  /* Streamed MP3 soundtrack. A single reusable <audio> element plays one track
+     at a time and loops; swapping its src changes track. Using one element that
+     gets unlocked by the first user gesture means later programmatic track
+     changes (death, victory) keep working on mobile, where a fresh element
+     would be blocked from auto-playing. theme → menu + victory, lvl1 →
+     gameplay, gameover → death screen. */
   music: {
-    on: false, step: 0, nextT: 0, timer: null,
-    bass: [55, 55, 0, 55, 0, 110, 55, 0, 65.41, 65.41, 0, 65.41, 0, 130.81, 49, 98],
-    start() {
-      if (!Sfx.ctx || this.on) return;
-      this.on = true;
-      this.step = 0;
-      this.nextT = Sfx.ctx.currentTime + 0.05;
-      this.timer = setInterval(() => this.tick(), 80);
-    },
-    stop() {
-      this.on = false;
-      if (this.timer) clearInterval(this.timer);
-      this.timer = null;
-    },
-    tick() {
-      if (!this.on) return;
-      const ctx = Sfx.ctx, spb = 60 / 116 / 2;
-      while (this.nextT < ctx.currentTime + 0.3) {
-        const s = this.step & 15, t = this.nextT;
-        const f = this.bass[s];
-        if (f) Sfx.bassNote(f, t, spb * 0.85);
-        if ((s & 3) === 0) Sfx.kick(t);
-        if ((s & 3) === 2) Sfx.hat(t, s === 14);
-        this.nextT += spb;
-        this.step++;
+    files: { theme: 'audio/theme.mp3', lvl1: 'audio/lvl1.mp3', gameover: 'audio/gameover.mp3' },
+    el: null, current: null,
+
+    audio() {
+      if (!this.el) {
+        const a = new Audio();
+        a.loop = true;
+        a.preload = 'auto';
+        a.volume = 0.6;
+        this.el = a;
       }
+      return this.el;
     },
+
+    play(name) {
+      if (!this.files[name]) return;
+      const a = this.audio();
+      if (this.current === name && !a.paused) return; // already rolling
+      a.muted = Sfx.muted;
+      if (this.current !== name) {
+        a.src = this.files[name];
+        this.current = name;
+      }
+      try { a.currentTime = 0; } catch (e) { /* not seekable yet */ }
+      a.play().catch(() => { /* needs a gesture; retried on the next tap */ });
+    },
+
+    stop() {
+      if (this.el) this.el.pause();
+      this.current = null;
+    },
+
+    // older call site: gameplay music
+    start() { this.play('lvl1'); },
+
+    applyMute() { if (this.el) this.el.muted = Sfx.muted; },
   },
 };

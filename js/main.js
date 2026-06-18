@@ -46,6 +46,7 @@
         for (const c of wrap.children) c.classList.remove('selected');
         opt.classList.add('selected');
         Sfx.init(); Sfx.resume(); Sfx.pickup();
+        Sfx.music.play('theme'); // menu music
       });
       wrap.appendChild(opt);
     });
@@ -58,15 +59,35 @@
   const begin = () => {
     Sfx.init();
     Sfx.resume();
-    Sfx.music.start();
+    Sfx.music.play('lvl1'); // level theme
     BG.playVideo(); // ensure the bg clip is rolling (autoplay may have been blocked)
     Game.start();
   };
-  // any first tap on the title is a valid gesture to kick off muted video too
-  document.addEventListener('pointerdown', () => BG.playVideo(), { once: true });
+  // first tap anywhere is a valid gesture: unlock audio + kick off menu theme + video
+  document.addEventListener('pointerdown', () => {
+    Sfx.init();
+    Sfx.resume();
+    Sfx.music.play('theme');
+    BG.playVideo();
+  }, { once: true });
   for (const id of ['btn-start', 'btn-retry', 'btn-again']) {
     document.getElementById(id).addEventListener('click', begin);
   }
+
+  // mute toggle (works before audio is initialised too)
+  const muteBtn = document.getElementById('btn-mute');
+  Sfx.loadMutePref();
+  const renderMute = () => {
+    muteBtn.textContent = Sfx.muted ? '🔇' : '🔊';
+    muteBtn.classList.toggle('muted', Sfx.muted);
+    muteBtn.setAttribute('aria-label', Sfx.muted ? 'Unmute sound' : 'Mute sound');
+  };
+  renderMute();
+  muteBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    Sfx.toggleMute();
+    renderMute();
+  });
 
   let last = performance.now();
   function frame(now) {
