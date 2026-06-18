@@ -55,6 +55,20 @@ canvas { position: absolute; inset: 0; display: block; }
 }
 #btn-pause:active { transform: scale(.9); }
 
+/* charge-blast button (bottom-centre): fills up, glows when ready */
+#btn-charge {
+  position: absolute; z-index: 20; pointer-events: auto; cursor: pointer;
+  left: 50%; transform: translateX(-50%); bottom: calc(12px + env(safe-area-inset-bottom));
+  width: 58px; height: 58px; border-radius: 50%; overflow: hidden;
+  border: 2px solid rgba(138,255,58,.3); background: rgba(14,8,22,.6);
+  color: #5a7a3a; font-size: 24px; display: flex; align-items: center; justify-content: center;
+}
+#btn-charge b { position: relative; z-index: 2; line-height: 1; }
+#chargefill { position: absolute; left: 0; bottom: 0; width: 100%; height: 0%; z-index: 1; opacity: .5;
+  background: linear-gradient(0deg, #64d122, #b7ff2e); transition: height .1s linear; }
+#btn-charge.ready { color: #143; border-color: #b7ff2e; box-shadow: 0 0 18px rgba(183,255,46,.85); animation: hum .8s ease-in-out infinite; }
+#btn-charge:active { transform: translateX(-50%) scale(.92); }
+
 /* developer menu (press D) */
 #screen-dev {
   position: absolute; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center;

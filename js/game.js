@@ -128,6 +128,7 @@ const Game = {
   enemies: [], pbullets: [], ebullets: [], powerups: [], splats: [],
   paused: false,
   dda: 1, hitFreeWave: true, kills: 0, // dynamic difficulty: >1 harder, <1 easier
+  charge: 0, // 0..1 charge-blast meter
   score: 0, dispScore: -1, combo: 0, comboT: 0, maxCombo: 0,
   shakeAmp: 0, hitstop: 0, beamY: -10,
   lastHp: -1, lastWeapon: '', lastBoost: '§', lastCombo: -1,
@@ -140,7 +141,7 @@ const Game = {
     const ids = [
       'hud', 'score', 'combo', 'hearts', 'weapon', 'boosts',
       'bossbar', 'bossname', 'bossfill', 'banner', 'banner-main', 'banner-sub', 'flash',
-      'screen-title', 'screen-over', 'screen-clear', 'screen-pause', 'btn-pause',
+      'screen-title', 'screen-over', 'screen-clear', 'screen-pause', 'btn-pause', 'btn-charge', 'chargefill',
       'final-score', 'clear-score', 'clear-chain', 'best', 'over-sub', 'clear-sub',
       'hsentry-over', 'hsname-over', 'hssave-over', 'scores-over', 'gscores-over',
       'hsentry-clear', 'hsname-clear', 'hssave-clear', 'scores-clear', 'gscores-clear',
@@ -200,6 +201,7 @@ const Game = {
     this.dda = 1;
     this.hitFreeWave = true;
     this.kills = 0;
+    this.charge = 0;
     this.paused = false;
     this.els['screen-title'].classList.add('hidden');
     this.els['screen-over'].classList.add('hidden');
@@ -208,6 +210,26 @@ const Game = {
     this.els.bossbar.classList.add('hidden');
     this.els.hud.classList.remove('hidden');
     this.els['btn-pause'].classList.remove('hidden');
+    this.els['btn-charge'].classList.remove('hidden');
+  },
+
+  // charged screen-blast: heavy damage to everything on screen (≈2x a normal clear)
+  blast() {
+    if (this.charge < 1 || this.state !== 'playing' || this.paused || !this.player.alive) return;
+    this.charge = 0;
+    Sfx.boom(1.5);
+    this.flash('rgba(183,255,46,0.5)');
+    this.shake(18);
+    this.hitstop = Math.max(this.hitstop, 0.09);
+    Particles.explosion(this.player.x, this.player.y, '#b7ff2e', 2.6);
+    for (let i = this.enemies.length - 1; i >= 0; i--) {
+      const e = this.enemies[i];
+      if (e.delay > 0 || e.dead) continue;
+      e.damage(90, this);
+    }
+    if (this.boss && this.boss.state === 'fight') this.boss.damage(320, this);
+    this.ebullets.length = 0; // wipe incoming fire too
+    Comics.say('clear', this.player.x, this.player.y - 50, 0.8);
   },
 
   // dev: jump straight to a world + wave (wave -1 = go to the boss)
@@ -380,6 +402,7 @@ const Game = {
       this.comboT -= dt;
       if (this.comboT <= 0) this.combo = 0;
     }
+    this.charge = Math.min(1, this.charge + dt * 0.025); // passive charge trickle
     this.updateHud();
   },
 
@@ -489,6 +512,7 @@ const Game = {
     } else if (Math.random() < 0.13 * (2 - this.dda)) { // struggling players get more drops
       this.powerups.push(new PowerUp(e.x, e.y, U.pick(['shield', 'over', 'mult', 'repair'])));
     }
+    this.charge = Math.min(1, this.charge + 0.045); // kills build the charge blast
     this.kills = (this.kills || 0) + 1; // for adaptive difficulty
     // wave-clear comic when this was the last enemy standing
     if (!this.boss && Level.queue && Level.queue.length === 0 && this.enemies.length <= 1 &&
@@ -585,6 +609,7 @@ const Game = {
     this.els['screen-over'].classList.remove('hidden');
     this.els.hud.classList.add('hidden');
     this.els['btn-pause'].classList.add('hidden');
+    this.els['btn-charge'].classList.add('hidden');
     this.paused = false; this.els['screen-pause'].classList.add('hidden');
     this.els.bossbar.classList.add('hidden');
     this.showHighScores('over');
@@ -603,6 +628,7 @@ const Game = {
     this.els['screen-clear'].classList.remove('hidden');
     this.els.hud.classList.add('hidden');
     this.els['btn-pause'].classList.add('hidden');
+    this.els['btn-charge'].classList.add('hidden');
     this.paused = false; this.els['screen-pause'].classList.add('hidden');
     this.showHighScores('clear');
   },
@@ -696,6 +722,8 @@ const Game = {
     if (this.boss) {
       els.bossfill.style.width = Math.max(0, (this.boss.hp / this.boss.maxHp) * 100) + '%';
     }
+    els.chargefill.style.height = (this.charge * 100) + '%';
+    els['btn-charge'].classList.toggle('ready', this.charge >= 1);
   },
 
   render() {

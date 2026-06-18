@@ -193,8 +193,10 @@
   // pause: button, Esc key, and the resume button on the overlay
   document.getElementById('btn-pause').addEventListener('click', (e) => { e.stopPropagation(); Game.togglePause(); });
   document.getElementById('btn-resume').addEventListener('click', (e) => { e.stopPropagation(); Game.togglePause(false); });
+  document.getElementById('btn-charge').addEventListener('pointerdown', (e) => { e.stopPropagation(); Game.blast(); });
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') { e.preventDefault(); Game.togglePause(); }
+    else if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); Game.blast(); }
   });
 
   // ---- sound mix (persisted) + developer menu (press D) ----
