@@ -220,18 +220,19 @@ const Game = {
   // orb + more damage.
   releaseCharge() {
     if (this.state !== 'playing' || this.paused || !this.player.alive) return;
-    if (this.charge < 0.4) return;
+    if (this.charge < 0.4) return; // needs a real charge — quick taps don't fire it
     const power = this.charge;
     this.charge = 0;
     this.plasmas.push({
-      x: this.player.x, y: this.player.y - 18, vy: -300,
-      r: 44 + power * 92, dmg: 50 + power * 150, life: 1.9, hit: [], bossHit: false,
+      x: this.player.x, y: this.player.y - 18, vy: -210, // slow + deliberate, so you aim it
+      r: 36 + power * 70, rMax: 70 + power * 130, dmg: 70 + power * 200,
+      life: 2.6, hit: [], bossHit: false,
     });
     Sfx.beamBlast();
-    this.shake(7 + power * 9);
-    this.hitstop = Math.max(this.hitstop, 0.05);
-    this.flash('rgba(150,255,120,0.28)');
-    Particles.burst(this.player.x, this.player.y - 16, '#b7ff2e', 18, 280, { life: 0.45, size: 3 });
+    this.shake(9 + power * 10);
+    this.hitstop = Math.max(this.hitstop, 0.07);
+    this.flash(`rgba(150,255,120,${0.2 + power * 0.2})`);
+    Particles.burst(this.player.x, this.player.y - 16, '#b7ff2e', 22, 320, { life: 0.5, size: 3.5 });
     Comics.say('bonus', this.player.x, this.player.y - 54, 0.4);
   },
 
@@ -356,7 +357,7 @@ const Game = {
       if (b.dead) this.pbullets.splice(i, 1);
     }
 
-    if (p.alive && p.weapon === 'beam') this.beamUpdate(dt);
+    if (p.alive && p.weapon === 'beam' && p.firing) this.beamUpdate(dt); else this.beamY = -10;
 
     // enemy bullets
     for (let i = this.ebullets.length - 1; i >= 0; i--) {
@@ -405,20 +406,31 @@ const Game = {
       this.comboT -= dt;
       if (this.comboT <= 0) this.combo = 0;
     }
-    this.charge = Math.min(1, this.charge + dt * (this.charging ? 0.55 : 0.02)); // builds fast while held
+    // hold to fire + charge; release fires the plasma (single source of truth)
+    const firing = Input.firing();
+    if (this.wasFiring && !firing) this.releaseCharge();
+    this.charging = firing;
+    this.wasFiring = firing;
+    this.charge = Math.min(1, this.charge + dt * (this.charging ? 0.34 : 0.012)); // slower, deliberate load
     // plasma orbs: fly up, melt every enemy inside their radius (once each)
     for (let i = this.plasmas.length - 1; i >= 0; i--) {
       const pl = this.plasmas[i];
       pl.y += pl.vy * dt;
       pl.life -= dt;
+      pl.r = Math.min(pl.rMax, pl.r + dt * 60); // grows as it climbs
       for (const e of this.enemies) {
         if (e.delay > 0 || e.dead || pl.hit.indexOf(e) >= 0) continue;
         const rr = pl.r + e.r;
         if (U.dist2(pl.x, pl.y, e.x, e.y) < rr * rr) { pl.hit.push(e); e.damage(pl.dmg, this); }
       }
-      if (!pl.bossHit && this.boss && this.boss.hitTest(pl.x, pl.y, pl.r)) { pl.bossHit = true; this.boss.damage(pl.dmg, this); }
-      Particles.spawn({ x: pl.x + U.rand(-pl.r * 0.3, pl.r * 0.3), y: pl.y + U.rand(-6, 10), vx: U.rand(-30, 30), vy: U.rand(20, 70), color: '#b7ff2e', size: 3, life: 0.3, glow: 10 });
-      if (pl.life <= 0 || pl.y < -pl.r) this.plasmas.splice(i, 1);
+      if (this.boss && this.boss.hitTest(pl.x, pl.y, pl.r) && (pl.bossT || 0) <= 0) { pl.bossT = 0.12; this.boss.damage(pl.dmg * 0.5, this); }
+      if (pl.bossT) pl.bossT -= dt;
+      Particles.spawn({ x: pl.x + U.rand(-pl.r * 0.4, pl.r * 0.4), y: pl.y + U.rand(-8, 12), vx: U.rand(-40, 40), vy: U.rand(20, 80), color: '#b7ff2e', size: 3.5, life: 0.35, glow: 12 });
+      if (pl.life <= 0 || pl.y < -pl.r) {
+        Particles.explosion(pl.x, pl.y, '#b7ff2e', 1.8); // satisfying detonation
+        this.shake(6);
+        this.plasmas.splice(i, 1);
+      }
     }
     // music watchdog: if the level track ever stalls/stops, nudge it back to life
     const mc = Sfx.music.els && Sfx.music.els[Sfx.music.cur];
@@ -774,7 +786,7 @@ const Game = {
     for (const u of this.powerups) u.draw(ctx);
     if (this.boss) this.boss.draw(ctx);
     for (const e of this.enemies) e.draw(ctx, this);
-    if (this.state === 'playing' && this.player.alive && this.player.weapon === 'beam') {
+    if (this.state === 'playing' && this.player.alive && this.player.weapon === 'beam' && this.player.firing) {
       this.drawBeam(ctx);
     }
     for (const b of this.pbullets) drawBullet(ctx, b);

@@ -67,6 +67,9 @@ const Input = {
     return { x, y };
   },
 
+  // true while the player is holding to fire (pointer/touch down or Space held)
+  firing() { return this.down || !!this.keys.Space; },
+
   axis() {
     const k = this.keys;
     let x = 0, y = 0;

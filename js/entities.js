@@ -74,10 +74,13 @@ class Player {
     }
 
     this.fireCd -= dt;
+    this.firing = Input.firing(); // only shoot while held — no auto-fire
     if (this.weapon === 'beam') {
-      this.beamSfx -= dt;
-      if (this.beamSfx <= 0) { this.beamSfx = 0.14; Sfx.shoot('beam'); }
-    } else if (this.fireCd <= 0) {
+      if (this.firing) {
+        this.beamSfx -= dt;
+        if (this.beamSfx <= 0) { this.beamSfx = 0.14; Sfx.shoot('beam'); }
+      }
+    } else if (this.firing && this.fireCd <= 0) {
       this.fire();
     }
   }
