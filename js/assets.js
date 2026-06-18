@@ -430,10 +430,12 @@ const FRAMES = {
 const _rectCache = {};
 
 function sliceStrip(img, f, W, H) {
-  // Tight-bbox each cell, but ANCHOR every frame to its cell centre. The body
-  // stays put across frames and asymmetric attack frames (a cannon/beam jutting
-  // out) extend outward instead of shoving the whole sprite off-centre or
-  // blowing up the bounding box. Fixes the "cutting / not centred / glitching".
+  // BOX slicing: every frame is the EXACT grid cell (no per-frame bbox), so the
+  // framing is identical on every frame — nothing jitters, shifts or crops. We
+  // scan the pixels only ONCE, to find the character's overall extent (union of
+  // all cells), which we use to size it to f.h and centre it. Each frame then
+  // draws its whole cell at that fixed size/offset, so attack frames (cannons,
+  // beams) show in full without ever shoving the body around.
   const sx0 = Math.max(0, Math.round(f.fx * W));
   const sy0 = Math.max(0, Math.round(f.fy * H));
   const tw = Math.min(Math.round(f.fw * f.n * W), W - sx0);
@@ -446,30 +448,37 @@ function sliceStrip(img, f, W, H) {
   const d = x.getImageData(0, 0, tw, th).data; // throws if tainted -> caller falls back
   const A = 24;
   const cw = tw / f.n;
-  const rects = [];
+  const cells = [];
+  // union (cell-local) extent of the opaque pixels across every cell
+  let uL = Infinity, uR = -Infinity, uT = Infinity, uB = -Infinity, any = false;
   for (let i = 0; i < f.n; i++) {
     const cx0 = Math.floor(i * cw), cx1 = Math.floor((i + 1) * cw);
-    let left = cx1, right = cx0 - 1, top = th, bot = -1;
+    cells.push([cx0, cx1]);
     for (let yy = 0; yy < th; yy++) {
       const row = yy * tw;
       for (let xx = cx0; xx < cx1; xx++) {
         if (d[(row + xx) * 4 + 3] > A) {
-          if (xx < left) left = xx;
-          if (xx > right) right = xx;
-          if (yy < top) top = yy;
-          if (yy > bot) bot = yy;
+          any = true;
+          const lxl = xx - cx0;
+          if (lxl < uL) uL = lxl;
+          if (lxl > uR) uR = lxl;
+          if (yy < uT) uT = yy;
+          if (yy > uB) uB = yy;
         }
       }
     }
-    let lx, ty, sw, sh;
-    if (right < left || bot < top) { lx = cx0; ty = 0; sw = cx1 - cx0; sh = th; }
-    else { lx = left; ty = top; sw = right - left + 1; sh = bot - top + 1; }
-    // offset of this frame's centre from the cell centre (source px)
-    const ox = (lx + sw / 2) - (cx0 + (cx1 - cx0) / 2);
-    const oy = (ty + sh / 2) - th / 2;
-    rects.push({ sx: sx0 + lx, sy: sy0 + ty, sw, sh, ox, oy });
   }
-  return rects;
+  if (!any) { uL = 0; uR = Math.floor(cw) - 1; uT = 0; uB = th - 1; }
+  const unionW = uR - uL + 1, unionH = uB - uT + 1;
+  const unionCx = uL + unionW / 2, unionCy = uT + unionH / 2;
+  const rects = [];
+  for (let i = 0; i < f.n; i++) {
+    const [cx0, cx1] = cells[i];
+    const cwI = cx1 - cx0;
+    // draw the FULL cell, shifted so the character's union centre sits at origin
+    rects.push({ sx: sx0 + cx0, sy: sy0, sw: cwI, sh: th, ox: cwI / 2 - unionCx, oy: th / 2 - unionCy });
+  }
+  return { rects, refH: unionH, refW: unionW };
 }
 
 function frameRects(key) {
@@ -477,17 +486,17 @@ function frameRects(key) {
   const f = FRAMES[key];
   const img = Assets.imgs[f.sheet];
   const W = sheetW(img), H = sheetH(img);
-  let rects = null;
-  try { rects = sliceStrip(img, f, W, H); } catch (e) { rects = null; }
-  if (!rects) {
-    rects = [];
+  let out = null;
+  try { out = sliceStrip(img, f, W, H); } catch (e) { out = null; }
+  if (!out) {
+    const rects = [];
     for (let i = 0; i < f.n; i++) {
       rects.push({ sx: (f.fx + i * f.fw) * W, sy: f.fy * H, sw: f.fw * W, sh: f.fh * H, ox: 0, oy: 0 });
     }
+    let refH = 0, refW = 0;
+    for (const r of rects) { if (r.sh > refH) refH = r.sh; if (r.sw > refW) refW = r.sw; }
+    out = { rects, refH, refW };
   }
-  let refH = 0, refW = 0;
-  for (const r of rects) { if (r.sh > refH) refH = r.sh; if (r.sw > refW) refW = r.sw; }
-  const out = { rects, refH, refW };
   _rectCache[key] = out;
   return out;
 }
