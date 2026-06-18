@@ -76,6 +76,20 @@ const BG = {
     }
   },
 
+  // swap just the video source (used for the world-7 ending scene)
+  setVideo(src) {
+    if (!this.video || !src) return;
+    if (src !== this._videoSrc) {
+      this._videoSrc = src;
+      this.vdur = 0;
+      this.video.src = src;
+      this.video.load();
+    }
+    this.video.volume = this.videoVol;
+    this.video.muted = Sfx.muted;
+    this.video.play().catch(() => { /* ignore */ });
+  },
+
   playVideo() {
     if (this.video && this._videoSrc) {
       this.video.volume = this.videoVol;

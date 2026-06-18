@@ -447,6 +447,8 @@ const Game = {
       BG.travel = 0;
       BG.leveling = true;
     } else {
+      const w = WORLDS[Level.worldIdx];
+      if (w && w.ending) BG.setVideo(w.ending); // abyss ending scene behind the victory screen
       this.levelClear();
     }
   },

@@ -104,20 +104,21 @@
   };
   document.addEventListener('pointerdown', onLoadTap);
 
-  // character / ship select on the title screen
-  function drawShipThumb(cv, key) {
+  // character / ship select on the title screen — live animated icons + names
+  const shipThumbs = [];
+  function drawShipThumb(cv, key, t, sel) {
     const x = cv.getContext('2d');
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    cv.width = 60 * dpr; cv.height = 60 * dpr;
+    if (cv.width !== 64 * dpr) { cv.width = 64 * dpr; cv.height = 64 * dpr; }
     x.setTransform(dpr, 0, 0, dpr, 0, 0);
-    x.clearRect(0, 0, 60, 60);
+    x.clearRect(0, 0, 64, 64);
     x.save();
-    x.translate(30, 32);
+    x.translate(32, 34 + Math.sin(t * 3 + key.length) * 1.6); // gentle idle bob
     const f = FRAMES[key];
     if (f && Assets.ok(f.sheet)) {
-      SPR.local(x, key, 0.15, 46 / f.h);
+      SPR.local(x, key, t, (sel ? 54 : 46) / f.h); // animate through the strip; selected = bigger
     } else {
-      x.fillStyle = '#ffb347';
+      x.fillStyle = sel ? '#8aff3a' : '#ffb347';
       x.beginPath();
       x.moveTo(0, -18); x.lineTo(15, 14); x.lineTo(-15, 14); x.closePath();
       x.fill();
@@ -125,14 +126,17 @@
     x.restore();
   }
 
+  function animateThumbs(t) {
+    for (const th of shipThumbs) drawShipThumb(th.cv, th.key, t, th.opt.classList.contains('selected'));
+  }
+
   function buildCharSelect() {
     const wrap = document.getElementById('charsel');
     if (!wrap || wrap.childElementCount) return;
-    Game.SHIPS.forEach((s, i) => {
+    Game.SHIPS.forEach((s) => {
       const opt = document.createElement('div');
       opt.className = 'charopt' + (s.key === Game.selectedShipKey ? ' selected' : '');
       const cv = document.createElement('canvas');
-      drawShipThumb(cv, s.key);
       const lbl = document.createElement('div');
       lbl.className = 'charlbl';
       lbl.textContent = s.name;
@@ -146,6 +150,8 @@
         Sfx.music.play('theme'); // menu music
       });
       wrap.appendChild(opt);
+      shipThumbs.push({ cv, key: s.key, opt });
+      drawShipThumb(cv, s.key, 0.1, s.key === Game.selectedShipKey);
     });
   }
 
@@ -153,9 +159,15 @@
   window.addEventListener('orientationchange', () => setTimeout(() => Game.resize(), 250));
   document.addEventListener('gesturestart', e => e.preventDefault());
 
+  const goFullscreen = () => {
+    const el = document.documentElement;
+    const fn = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+    if (fn) { try { fn.call(el); } catch (e) { /* unsupported (e.g. iOS Safari) */ } }
+  };
   const begin = () => {
     Sfx.init();
     Sfx.resume();
+    goFullscreen();
     Game.start(); // start() → Level.reset → applyWorld swaps in world 1's bg + music
   };
   for (const id of ['btn-start', 'btn-retry', 'btn-again']) {
@@ -186,6 +198,7 @@
     if (Game.hitstop > 0) Game.hitstop -= dt; // freeze-frame for impact
     else Game.update(dt);
     Game.render();
+    if (!titleEl.classList.contains('hidden')) animateThumbs(Game.time); // live menu icons
   }
   requestAnimationFrame(frame);
 })();
