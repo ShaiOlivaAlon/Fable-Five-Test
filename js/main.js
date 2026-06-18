@@ -183,10 +183,16 @@
   // pause: button, Esc key, and the resume button on the overlay
   document.getElementById('btn-pause').addEventListener('click', (e) => { e.stopPropagation(); Game.togglePause(); });
   document.getElementById('btn-resume').addEventListener('click', (e) => { e.stopPropagation(); Game.togglePause(false); });
-  document.getElementById('btn-charge').addEventListener('pointerdown', (e) => { e.stopPropagation(); Game.blast(); });
+  // charge plasma by HOLDING (drag / Space), release to fire — see canvas + key handlers below
+  document.getElementById('btn-charge').addEventListener('pointerdown', (e) => { e.stopPropagation(); Game.releaseCharge(); });
+  canvas.addEventListener('pointerdown', () => { if (Game.state === 'playing' && !Game.paused) Game.charging = true; });
+  window.addEventListener('pointerup', () => { if (Game.charging) { Game.charging = false; Game.releaseCharge(); } });
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') { e.preventDefault(); Game.togglePause(); }
-    else if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); Game.blast(); }
+    else if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); if (Game.state === 'playing') Game.charging = true; }
+  });
+  window.addEventListener('keyup', (e) => {
+    if (e.key === ' ' || e.code === 'Space') { if (Game.charging) { Game.charging = false; Game.releaseCharge(); } }
   });
 
   // ---- sound mix (persisted) + developer menu (press D) ----

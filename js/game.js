@@ -128,7 +128,7 @@ const Game = {
   enemies: [], pbullets: [], ebullets: [], powerups: [], splats: [],
   paused: false,
   dda: 1, hitFreeWave: true, kills: 0, // dynamic difficulty: >1 harder, <1 easier
-  charge: 0, // 0..1 charge-blast meter
+  charge: 0, charging: false, plasmas: [], // hold to charge → release a plasma orb
   score: 0, dispScore: -1, combo: 0, comboT: 0, maxCombo: 0,
   shakeAmp: 0, hitstop: 0, beamY: -10,
   lastHp: -1, lastWeapon: '', lastBoost: '§', lastCombo: -1,
@@ -202,6 +202,8 @@ const Game = {
     this.hitFreeWave = true;
     this.kills = 0;
     this.charge = 0;
+    this.charging = false;
+    this.plasmas.length = 0;
     this.paused = false;
     this.els['screen-title'].classList.add('hidden');
     this.els['screen-over'].classList.add('hidden');
@@ -213,23 +215,24 @@ const Game = {
     this.els['btn-charge'].classList.remove('hidden');
   },
 
-  // charged screen-blast: heavy damage to everything on screen (≈2x a normal clear)
-  blast() {
-    if (this.charge < 1 || this.state !== 'playing' || this.paused || !this.player.alive) return;
+  // release the held charge as a PLASMA orb — a fat slug that flies up and melts
+  // every enemy inside its radius (not the whole screen). Bigger charge = bigger
+  // orb + more damage.
+  releaseCharge() {
+    if (this.state !== 'playing' || this.paused || !this.player.alive) return;
+    if (this.charge < 0.4) return;
+    const power = this.charge;
     this.charge = 0;
-    Sfx.boom(1.5);
-    this.flash('rgba(183,255,46,0.5)');
-    this.shake(18);
-    this.hitstop = Math.max(this.hitstop, 0.09);
-    Particles.explosion(this.player.x, this.player.y, '#b7ff2e', 2.6);
-    for (let i = this.enemies.length - 1; i >= 0; i--) {
-      const e = this.enemies[i];
-      if (e.delay > 0 || e.dead) continue;
-      e.damage(90, this);
-    }
-    if (this.boss && this.boss.state === 'fight') this.boss.damage(320, this);
-    this.ebullets.length = 0; // wipe incoming fire too
-    Comics.say('clear', this.player.x, this.player.y - 50, 0.8);
+    this.plasmas.push({
+      x: this.player.x, y: this.player.y - 18, vy: -300,
+      r: 44 + power * 92, dmg: 50 + power * 150, life: 1.9, hit: [], bossHit: false,
+    });
+    Sfx.beamBlast();
+    this.shake(7 + power * 9);
+    this.hitstop = Math.max(this.hitstop, 0.05);
+    this.flash('rgba(150,255,120,0.28)');
+    Particles.burst(this.player.x, this.player.y - 16, '#b7ff2e', 18, 280, { life: 0.45, size: 3 });
+    Comics.say('bonus', this.player.x, this.player.y - 54, 0.4);
   },
 
   // dev: jump straight to a world + wave (wave -1 = go to the boss)
@@ -402,7 +405,21 @@ const Game = {
       this.comboT -= dt;
       if (this.comboT <= 0) this.combo = 0;
     }
-    this.charge = Math.min(1, this.charge + dt * 0.025); // passive charge trickle
+    this.charge = Math.min(1, this.charge + dt * (this.charging ? 0.55 : 0.02)); // builds fast while held
+    // plasma orbs: fly up, melt every enemy inside their radius (once each)
+    for (let i = this.plasmas.length - 1; i >= 0; i--) {
+      const pl = this.plasmas[i];
+      pl.y += pl.vy * dt;
+      pl.life -= dt;
+      for (const e of this.enemies) {
+        if (e.delay > 0 || e.dead || pl.hit.indexOf(e) >= 0) continue;
+        const rr = pl.r + e.r;
+        if (U.dist2(pl.x, pl.y, e.x, e.y) < rr * rr) { pl.hit.push(e); e.damage(pl.dmg, this); }
+      }
+      if (!pl.bossHit && this.boss && this.boss.hitTest(pl.x, pl.y, pl.r)) { pl.bossHit = true; this.boss.damage(pl.dmg, this); }
+      Particles.spawn({ x: pl.x + U.rand(-pl.r * 0.3, pl.r * 0.3), y: pl.y + U.rand(-6, 10), vx: U.rand(-30, 30), vy: U.rand(20, 70), color: '#b7ff2e', size: 3, life: 0.3, glow: 10 });
+      if (pl.life <= 0 || pl.y < -pl.r) this.plasmas.splice(i, 1);
+    }
     // music watchdog: if the level track ever stalls/stops, nudge it back to life
     const mc = Sfx.music.els && Sfx.music.els[Sfx.music.cur];
     if (mc && mc.paused && Sfx.music.currentSrc && !Sfx.music.fade) mc.play().catch(() => {});
@@ -744,7 +761,31 @@ const Game = {
     }
     for (const b of this.pbullets) drawBullet(ctx, b);
     for (const b of this.ebullets) drawEnemyBullet(ctx, b, this.time);
+    for (const pl of this.plasmas) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const rr = pl.r * (0.86 + 0.14 * Math.sin(this.time * 28));
+      const g = ctx.createRadialGradient(pl.x, pl.y, 0, pl.x, pl.y, rr);
+      g.addColorStop(0, 'rgba(240,255,210,0.95)');
+      g.addColorStop(0.45, 'rgba(138,255,58,0.6)');
+      g.addColorStop(1, 'rgba(138,255,58,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(pl.x, pl.y, rr, 0, U.TAU); ctx.fill();
+      ctx.restore();
+    }
     if (this.state === 'playing' && this.player.alive) this.player.draw(ctx);
+    // charging glow building under the ship
+    if (this.state === 'playing' && this.charging && this.charge > 0.05 && this.player.alive) {
+      const p = this.player, cr = 8 + this.charge * 28;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const g = ctx.createRadialGradient(p.x, p.y - 14, 0, p.x, p.y - 14, cr);
+      g.addColorStop(0, `rgba(225,255,180,${0.45 + 0.45 * this.charge})`);
+      g.addColorStop(1, 'rgba(138,255,58,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(p.x, p.y - 14, cr, 0, U.TAU); ctx.fill();
+      ctx.restore();
+    }
     Particles.draw(ctx);
     // animated gross splats from enemy deaths (keyed FX sheets)
     for (const s of this.splats) {
