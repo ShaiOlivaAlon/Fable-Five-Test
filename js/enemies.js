@@ -911,7 +911,7 @@ const WORLDS = [
   { name: 'ROTTEN CANDY CAROUSEL', sub: 'the donuts smell you already',
     video: 'level1_bg.mp4',     fallback: 'level1_bg.png', music: 'audio/lvl1.mp3',  boss: 'THE GREAT CAKE OVERLORD' },
   { name: 'TRASH MOON BUFFET',    sub: 'leftovers that learned to bite back',
-    video: null,                fallback: null,            music: 'audio/world2.mp3', boss: 'THE MOLDY BURGER KING' },
+    video: 'worlds/world2.mp4', fallback: null,            music: 'audio/world2.mp3', boss: 'THE MOLDY BURGER KING' },
   { name: 'DIRTY DESERT WORLD',   sub: 'sand, dust and regret',
     video: 'worlds/world3.mp4', fallback: null,            music: 'audio/world3.mp3', boss: 'THE DUST MUMMY' },
   { name: 'TOILET ORBIT',         sub: 'you really came all this way for this',
@@ -921,8 +921,9 @@ const WORLDS = [
   { name: 'GRAVEYARD MEAT MOON',  sub: 'the worms remember your face',
     video: 'worlds/world6.mp4', fallback: null,            music: 'audio/world6.mp3', boss: 'THE ZOMBIE BUTCHER' },
   { name: 'THE ABYSS',            sub: 'there is no bottom, only gross',
-    video: 'worlds/world7.mp4', fallback: null,            music: 'audio/world6.mp3', boss: 'THE ALL-SEEING SLOP' },
-  // NOTE: world 2 video and world 7 music not yet supplied; world 7 reuses world 6 music for now.
+    video: 'worlds/world7.mp4', fallback: null,            music: 'audio/world7.mp3', boss: 'THE ALL-SEEING SLOP' },
+  // NOTE: static fallback PNGs for worlds 2-7 not yet supplied (worlds without a
+  // video fall back to the procedural background until those images arrive).
 ];
 
 const Level = {
