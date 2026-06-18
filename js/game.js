@@ -95,7 +95,7 @@ const Game = {
     this.ctx = canvas.getContext('2d');
     const ids = [
       'hud', 'score', 'combo', 'hearts', 'weapon', 'boosts',
-      'bossbar', 'bossfill', 'banner', 'banner-main', 'banner-sub', 'flash',
+      'bossbar', 'bossname', 'bossfill', 'banner', 'banner-main', 'banner-sub', 'flash',
       'screen-title', 'screen-over', 'screen-clear',
       'final-score', 'clear-score', 'clear-chain', 'best', 'over-sub', 'clear-sub',
       'hsentry-over', 'hsname-over', 'hssave-over', 'scores-over', 'gscores-over',
