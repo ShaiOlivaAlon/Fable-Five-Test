@@ -28,34 +28,61 @@
     loadmsg.textContent = LOAD_MSGS[msgi];
   }, 1300);
 
+  const startT = performance.now();
+  const MIN_MS = 1200; // keep the bar on screen long enough to actually see it fill
   let assetsReady = false, mediaReady = false, revealed = false;
-  const setFill = () => { loadfill.style.width = ((assetsReady ? 55 : 0) + (mediaReady ? 45 : 0)) + '%'; };
+  let assetsFrac = 0, videoFrac = 0; // sprite sheets weigh 60%, the video 40%
+
+  const setFill = () => {
+    const pct = Math.round((assetsFrac * 0.6 + videoFrac * 0.4) * 100);
+    loadfill.style.width = Math.max(6, Math.min(100, pct)) + '%';
+  };
   const reveal = () => {
     if (revealed) return;
     revealed = true;
     clearInterval(msgTimer);
     loadfill.style.width = '100%';
+    loadmsg.textContent = 'ready. ish.';
     setTimeout(() => {
       loadingEl.classList.add('hidden');
       titleEl.classList.remove('hidden');
-    }, 280);
+    }, 340);
   };
-  const maybeReveal = () => { setFill(); if (assetsReady && mediaReady) reveal(); };
+  const maybeReveal = () => {
+    setFill();
+    if (assetsReady && mediaReady && performance.now() - startT >= MIN_MS) reveal();
+  };
 
-  Assets.load(() => { buildCharSelect(); assetsReady = true; maybeReveal(); });
+  Assets.load(
+    () => { buildCharSelect(); assetsReady = true; assetsFrac = 1; maybeReveal(); },
+    (loaded, total) => { assetsFrac = total ? loaded / total : 1; setFill(); },
+  );
 
   const vid = BG.video;
+  const readVideoBuffer = () => {
+    if (!vid) return;
+    try {
+      const b = vid.buffered;
+      if (b && b.length && vid.duration) {
+        videoFrac = Math.max(videoFrac, Math.min(1, b.end(b.length - 1) / vid.duration));
+        setFill();
+      }
+    } catch (e) { /* buffered not ready yet */ }
+  };
   if (vid && !vid.error) {
-    if (vid.readyState >= 2) mediaReady = true;
-    else {
-      vid.addEventListener('loadeddata', () => { mediaReady = true; maybeReveal(); }, { once: true });
-      vid.addEventListener('error', () => { mediaReady = true; maybeReveal(); }, { once: true });
-    }
+    if (vid.readyState >= 2) { mediaReady = true; videoFrac = Math.max(videoFrac, 0.6); }
+    vid.addEventListener('loadeddata', () => { mediaReady = true; videoFrac = Math.max(videoFrac, 0.6); maybeReveal(); }, { once: true });
+    vid.addEventListener('progress', readVideoBuffer);
+    vid.addEventListener('canplaythrough', () => { videoFrac = 1; setFill(); }, { once: true });
+    vid.addEventListener('error', () => { mediaReady = true; videoFrac = 1; maybeReveal(); }, { once: true });
   } else {
-    mediaReady = true;
+    mediaReady = true; videoFrac = 1;
   }
+  // re-check once the minimum display time elapses (covers the all-cached case)
+  setTimeout(maybeReveal, MIN_MS + 40);
   // never let the heavy video block play — the static fallback covers a slow net
-  setTimeout(() => { mediaReady = true; maybeReveal(); }, 8000);
+  setTimeout(() => { mediaReady = true; videoFrac = Math.max(videoFrac, 1); maybeReveal(); }, 8000);
+  setFill();
   maybeReveal();
 
   // character / ship select on the title screen

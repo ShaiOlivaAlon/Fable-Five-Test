@@ -71,10 +71,12 @@ const Assets = {
   ready: {},
   done: false,
 
-  load(cb) {
+  load(cb, onProgress) {
     const names = Object.keys(this.SHEETS);
-    let left = names.length;
-    if (!left) { this.done = true; cb && cb(); return; }
+    const total = names.length;
+    let left = total;
+    const tick = () => { if (onProgress) onProgress(total - left, total); };
+    if (!left) { this.done = true; tick(); cb && cb(); return; }
     for (const name of names) {
       const img = new Image();
       img.decoding = 'async';
@@ -86,9 +88,10 @@ const Assets = {
         const g = sheetGrid(name);
         this.imgs[name] = name === 'bg' ? img : keyOutBg(img, g.cols, g.rows);
         this.ready[name] = true;
-        if (--left === 0) { this.done = true; cb && cb(); }
+        left--; tick();
+        if (left === 0) { this.done = true; cb && cb(); }
       };
-      img.onerror = () => { if (--left === 0) { this.done = true; cb && cb(); } };
+      img.onerror = () => { left--; tick(); if (left === 0) { this.done = true; cb && cb(); } };
       img.src = this.SHEETS[name];
       this.imgs[name] = img;
     }
