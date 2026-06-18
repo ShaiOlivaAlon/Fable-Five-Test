@@ -83,7 +83,7 @@ const Game = {
   ],
   selectedShipKey: 'player',
   player: null, boss: null,
-  enemies: [], pbullets: [], ebullets: [], powerups: [],
+  enemies: [], pbullets: [], ebullets: [], powerups: [], splats: [],
   score: 0, dispScore: -1, combo: 0, comboT: 0, maxCombo: 0,
   shakeAmp: 0, hitstop: 0, beamY: -10,
   lastHp: -1, lastWeapon: '', lastBoost: '§', lastCombo: -1,
@@ -138,6 +138,7 @@ const Game = {
     this.pbullets.length = 0;
     this.ebullets.length = 0;
     this.powerups.length = 0;
+    this.splats.length = 0;
     this.boss = null;
     this.shakeAmp = 0;
     this.hitstop = 0;
@@ -194,6 +195,11 @@ const Game = {
     BG.update(dt);
     Particles.update(dt);
     Popups.update(dt);
+    for (let i = this.splats.length - 1; i >= 0; i--) {
+      const s = this.splats[i];
+      s.t += dt;
+      if (s.t >= s.life) this.splats.splice(i, 1);
+    }
     if (this.shakeAmp > 0) this.shakeAmp = Math.max(0, this.shakeAmp - dt * 30);
     if (this.waveSignT > 0) this.waveSignT = Math.max(0, this.waveSignT - dt);
     if (this.state !== 'playing') { Input.consume(); return; }
@@ -361,6 +367,14 @@ const Game = {
     }
   },
 
+  // one-shot animated gross splat from a keyed FX sheet (plays once, fades out)
+  splat(x, y, key, scale) {
+    if (!SPR.ok(key)) return;
+    const f = FRAMES[key];
+    const life = f.fps > 0 ? f.n / f.fps : 0.3;
+    this.splats.push({ x, y, key, t: 0, life, scale: scale || 1 });
+  },
+
   killEnemy(e) {
     this.combo++;
     this.comboT = 2;
@@ -374,6 +388,8 @@ const Game = {
         '#ffd84d', 11);
     }
     Particles.explosion(e.x, e.y, e.spec.color, e.type === 'sentry' ? 1.25 : e.type === 'mite' ? 0.6 : 1);
+    this.splat(e.x, e.y, U.pick(['poop_splat', 'blood_splat', 'yellow_spl', 'rainbow_exp']),
+      e.type === 'sentry' ? 1.3 : e.type === 'mite' ? 0.6 : 0.95);
     Sfx.boom(e.type === 'sentry' ? 0.9 : 0.55);
     this.shake(e.type === 'sentry' ? 5 : 3);
     this.hitstop = Math.max(this.hitstop, 0.025);
@@ -600,6 +616,15 @@ const Game = {
     for (const b of this.ebullets) drawEnemyBullet(ctx, b, this.time);
     if (this.state === 'playing' && this.player.alive) this.player.draw(ctx);
     Particles.draw(ctx);
+    // animated gross splats from enemy deaths (keyed FX sheets)
+    for (const s of this.splats) {
+      ctx.save();
+      ctx.translate(s.x, s.y);
+      ctx.globalAlpha = Math.max(0, 1 - (s.t / s.life) * 0.7);
+      SPR.local(ctx, s.key, s.t, s.scale);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
     // wave sign sprite overlay
     if (this.waveSignT > 0 && this.waveSignKey) {
       const f = FRAMES[this.waveSignKey];
