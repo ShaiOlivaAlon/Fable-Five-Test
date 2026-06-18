@@ -9,14 +9,15 @@
    /assets. If a sheet is missing or still loading, every draw call falls back
    to the procedural art, so the game always runs.
 
-   To enable the painted art, drop these files into /assets:
-     pizza.png, condom.png, beer.png, coffee.png  — player ships
-     magazine.png, coin.png, pickle.png, yogamat.png, toilet.png — enemies
-     cake.png  — boss
-     unicorn.png, bag.png, heart.png — special / pickups
-     waves.png, healthbar.png, weaponcards.png, slimenums.png, slimegun.png — UI
-     bullet.png, hit.png, rainbow.png, blood.png, poop.png, yellow.png — FX
-     bg.png  — the tall vertical psychedelic background
+   All sprite sheets are at the repo root with their original upload filenames.
+   SHEETS maps short keys → real filenames so the rest of the code stays clean.
+   Ships: pizza, condom, beer, coffee, banana, shoe
+   Enemies: magazine (drone), coin (sentry), pickle (splitter), yogamat (mite),
+            toilet (diver), unicorn, bubbletea
+   Boss: cake
+   Pickups: bag, barfbag, alien_leaf
+   UI: heart, waves, bossalert, healthbar, weaponcards, slimenums, slimegun
+   FX: bullet, hit, rainbow, blood, poop, yellow
 
    FRAMES coordinates are NORMALISED (0..1 of each sheet's width/height) so they
    can be authored by eye from the reference images and stay resolution
@@ -26,31 +27,36 @@
 
 const Assets = {
   SHEETS: {
-    bg: 'assets/bg.png',
-    pizza: 'assets/pizza.png',
-    condom: 'assets/condom.png',
-    beer: 'assets/beer.png',
-    coffee: 'assets/coffee.png',
-    magazine: 'assets/magazine.png',
-    coin: 'assets/coin.png',
-    pickle: 'assets/pickle.png',
-    yogamat: 'assets/yogamat.png',
-    toilet: 'assets/toilet.png',
-    cake: 'assets/cake.png',
-    unicorn: 'assets/unicorn.png',
-    bag: 'assets/bag.png',
-    heart: 'assets/heart.png',
-    waves: 'assets/waves.png',
-    healthbar: 'assets/healthbar.png',
-    weaponcards: 'assets/weaponcards.png',
-    slimenums: 'assets/slimenums.png',
-    slimegun: 'assets/slimegun.png',
-    bullet: 'assets/bullet.png',
-    hit: 'assets/hit.png',
-    rainbow: 'assets/rainbow.png',
-    blood: 'assets/blood.png',
-    poop: 'assets/poop.png',
-    yellow: 'assets/yellow.png',
+    pizza:       'pizza_slice_spaceship_sprite_sheet_1b30cd53dd8b4edfb9ebc7b2d3e2a2bf.png',
+    condom:      'condom_packet_spaceship_sprite_sheet_0a63edc9f7e2431ebdf04565226bf31f.png',
+    beer:        'dented_beer_bottle_spaceship_sprite_sheet_3569a4ea1d704b138c0a2e5fe187c8e6.png',
+    coffee:      'latte_macchiato_enemy_sprite_sheet_42675f01ab9e447c845885d906425a4a.png',
+    banana:      'banana_peel_spaceship_sprite_sheet_315540e2440d449faed2f1c0a09a97e3.png',
+    shoe:        'smelly_shoe_spaceship_sprite_sheet_89e123db1a404ed3979939fb319d4f4d.png',
+    magazine:    'censored_tabloid_powerup_sprite_sheet_70b8bb868be3462681e8007385610d68.png',
+    coin:        'greasy_mutant_coin_sprite_sheet_5c537dfd40cb47dd925d68a120ef225b.png',
+    pickle:      'lumpy_pickle_spaceship_sprite_sheet_805c387103c84ba7b5470055c77ef97c.png',
+    yogamat:     'rolled_yoga_mat_enemy_f2e96230359e425299c5eaccf2b58ad4.png',
+    toilet:      'toilet_enemy_sprite_sheet_ffb151cd785249f7919058cb5a094ce6.png',
+    cake:        'disgusting_birthday_cake_enemy_792d7171229949698ce4ad9892300ede.png',
+    unicorn:     'gross_unicorn_enemy_sprite_sheet_fb7ed70a85bc4621b1aa188a717512a5.png',
+    bubbletea:   'bubble_tea_enemy_sprite_sheet_3251360ef3074607a9093f3f296160e4.png',
+    bag:         'mystery_space_dust_bag_a25c487a0e0149a490bbe5ba25a8a558.png',
+    barfbag:     'barf_bag_bomb_sprite_sheet_942436b59b124904b670796d7260c5ae.png',
+    alien_leaf:  'alien_leaf_powerup_sprite_sheet_1ca6ee5c5abf481a849c6356f3d4c217.png',
+    heart:       'pizza_pilot_lives_icons_932802f7ef7f4c04a356db8f3c2b4dc2.png',
+    waves:       'wave_number_banner_spritesheet_5a591e303a374e1a8ddc9a6b5fb9af86.png',
+    bossalert:   'boss_warning_alert_sprite_sheet_ea3f2d130d0243399ca834d8c60a532b.png',
+    healthbar:   'slime_power_meter_sprite_sheet_6c54076884364a43939f422b339c634b.png',
+    weaponcards: 'weird_arcade_weapon_panel_e08c85c05ba74b92be1c7eb00ac3d183.png',
+    slimenums:   'slime_digit_score_sheet_46f8a2c3159a453bb01ef395c1808cec.png',
+    slimegun:    'slime_blaster_sprite_sheet_7a70b41e973142a7bbc2dc49538464aa.png',
+    bullet:      'green_nose_booger_projectile_90da0f0a356542ee92e9cb01f38c23ea.png',
+    hit:         'vomit_splash_sprite_sheet_93f514815286413ebe1473117783a0e7.png',
+    rainbow:     'psychedelic_slime_explosion_sprite_sheet_fda844eee36740efb614e53f5010117b.png',
+    blood:       'red_goo_splattersheet_f895825a3685470e8ecc15b58cff5aea.png',
+    poop:        'cartoon_poop_splat_spritesheet_1ed7752aedcf41e6a5f652b6fda65bc1.png',
+    yellow:      'yellow_puddle_spray_sprite_sheet_2d04d62afb404ffaa812d4176dc9b7e8.png',
   },
 
   imgs: {},
@@ -154,6 +160,18 @@ const FRAMES = {
   ship_coffee_hurt:    { sheet: 'coffee',  fx: 0, fy: 0.50, fw: 0.25, fh: 0.25, n: 4, fps: 10, h: 96 },
   ship_coffee_death:   { sheet: 'coffee',  fx: 0, fy: 0.75, fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 96 },
 
+  // ---- alt ships (banana.png 4×4) ----
+  ship_banana:         { sheet: 'banana',  fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 96 },
+  ship_banana_shoot:   { sheet: 'banana',  fx: 0, fy: 0.25, fw: 0.25, fh: 0.25, n: 4, fps: 12, h: 96 },
+  ship_banana_hurt:    { sheet: 'banana',  fx: 0, fy: 0.50, fw: 0.25, fh: 0.25, n: 4, fps: 10, h: 96 },
+  ship_banana_death:   { sheet: 'banana',  fx: 0, fy: 0.75, fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 96 },
+
+  // ---- alt ships (shoe.png 4×4) ----
+  ship_shoe:           { sheet: 'shoe',    fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 96 },
+  ship_shoe_shoot:     { sheet: 'shoe',    fx: 0, fy: 0.25, fw: 0.25, fh: 0.25, n: 4, fps: 12, h: 96 },
+  ship_shoe_hurt:      { sheet: 'shoe',    fx: 0, fy: 0.50, fw: 0.25, fh: 0.25, n: 4, fps: 10, h: 96 },
+  ship_shoe_death:     { sheet: 'shoe',    fx: 0, fy: 0.75, fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 96 },
+
   // ---- enemies (magazine.png = drone, 4×4) ----
   enemy_drone:         { sheet: 'magazine', fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 64 },
   enemy_drone_hurt:    { sheet: 'magazine', fx: 0, fy: 0.50, fw: 0.25, fh: 0.25, n: 4, fps: 10, h: 64 },
@@ -221,9 +239,23 @@ const FRAMES = {
   health_bar:          { sheet: 'healthbar',   fx: 0, fy: 0, fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 40 },
 
   // ---- special (unicorn.png 4×4) ----
-  enemy_unicorn:       { sheet: 'unicorn', fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 120 },
-  enemy_unicorn_hurt:  { sheet: 'unicorn', fx: 0, fy: 0.50, fw: 0.25, fh: 0.25, n: 4, fps: 10, h: 120 },
-  enemy_unicorn_death: { sheet: 'unicorn', fx: 0, fy: 0.75, fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 120 },
+  enemy_unicorn:       { sheet: 'unicorn',   fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 120 },
+  enemy_unicorn_hurt:  { sheet: 'unicorn',   fx: 0, fy: 0.50, fw: 0.25, fh: 0.25, n: 4, fps: 10, h: 120 },
+  enemy_unicorn_death: { sheet: 'unicorn',   fx: 0, fy: 0.75, fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 120 },
+
+  // ---- special enemy (bubbletea.png 4×4) ----
+  enemy_bubbletea:       { sheet: 'bubbletea', fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 80 },
+  enemy_bubbletea_hurt:  { sheet: 'bubbletea', fx: 0, fy: 0.50, fw: 0.25, fh: 0.25, n: 4, fps: 10, h: 80 },
+  enemy_bubbletea_death: { sheet: 'bubbletea', fx: 0, fy: 0.75, fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 80 },
+
+  // ---- pickups (barfbag.png 4×4, barf-bag bombs) ----
+  pick_barfbag:        { sheet: 'barfbag',   fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 48 },
+
+  // ---- pickups (alien_leaf.png 4×4) ----
+  pick_alien_leaf:     { sheet: 'alien_leaf', fx: 0, fy: 0,   fw: 0.25, fh: 0.25, n: 4, fps: 8,  h: 48 },
+
+  // ---- boss warning banner (bossalert.png 4×4) ----
+  boss_alert:          { sheet: 'bossalert', fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 10, h: 80 },
 };
 
 /* Per-key cache of exact frame rectangles. Because the sheets now have

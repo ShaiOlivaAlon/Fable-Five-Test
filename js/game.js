@@ -35,6 +35,8 @@ const Game = {
     { key: 'ship_condom', name: 'CONDOM' },
     { key: 'ship_beer',   name: 'BEER' },
     { key: 'ship_coffee', name: 'LATTE' },
+    { key: 'ship_banana', name: 'BANANA' },
+    { key: 'ship_shoe',   name: 'SHOE' },
   ],
   selectedShipKey: 'player',
   player: null, boss: null,
