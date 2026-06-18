@@ -125,6 +125,18 @@ const Sfx = {
   },
   warnTone() { this.tone({ type: 'sawtooth', f0: 880, f1: 440, dur: 0.5, vol: 0.1 }); },
   beamBlast() { this.noise({ dur: 0.8, vol: 0.2, f0: 3000, f1: 300 }); },
+  comic(type) {
+    // quick cartoon sting to punctuate a comic bubble
+    if (type === 'hit') { // sad descending wah-wah
+      this.tone({ type: 'square', f0: 320, f1: 120, dur: 0.16, vol: 0.12 });
+      this.tone({ type: 'square', f0: 180, f1: 70, dur: 0.2, vol: 0.1, delay: 0.07 });
+    } else if (type === 'clear') { // triumphant little ta-da
+      [523, 659, 880, 1047].forEach((f, i) => this.tone({ type: 'square', f0: f, dur: 0.1, vol: 0.08, delay: i * 0.06 }));
+    } else { // bonus: boingy yoink
+      this.tone({ type: 'sine', f0: 680, f1: 1300, dur: 0.12, vol: 0.13 });
+      this.tone({ type: 'sine', f0: 1300, f1: 1900, dur: 0.1, vol: 0.1, delay: 0.08 });
+    }
+  },
   jingle() {
     [392, 523, 659, 784, 1047].forEach((f, i) => this.tone({ type: 'triangle', f0: f, dur: 0.22, vol: 0.09, delay: i * 0.11 }));
   },

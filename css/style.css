@@ -55,6 +55,28 @@ canvas { position: absolute; inset: 0; display: block; }
 }
 #btn-pause:active { transform: scale(.9); }
 
+/* 80s-cartoon comic speech bubble for random reactions */
+#comic {
+  position: absolute; z-index: 8; pointer-events: none; left: 50%; top: 40%;
+  transform: translate(-50%, -50%) rotate(var(--tilt, -4deg)) scale(0);
+  font-family: 'Arial Black', Impact, system-ui, sans-serif; font-weight: 900;
+  font-size: clamp(18px, 5vw, 26px); letter-spacing: 1px; text-transform: uppercase;
+  padding: 8px 15px; border-radius: 16px 16px 16px 4px;
+  background: #fff; color: #14060f; border: 3px solid #14060f;
+  box-shadow: 5px 6px 0 rgba(0,0,0,.45); white-space: nowrap; text-align: center; opacity: 0;
+}
+#comic.hit   { background: #ff5e6c; color: #fff; border-color: #3a0a12; }
+#comic.clear { background: #8aff3a; color: #13280a; }
+#comic.bonus { background: #ffd84d; color: #3a2400; }
+#comic.show { animation: comicPop 1.3s cubic-bezier(.2, 1.5, .4, 1) forwards; }
+@keyframes comicPop {
+  0%   { opacity: 1; transform: translate(-50%,-50%) rotate(var(--tilt)) scale(0); }
+  16%  { opacity: 1; transform: translate(-50%,-50%) rotate(var(--tilt)) scale(1.2); }
+  28%  { opacity: 1; transform: translate(-50%,-50%) rotate(var(--tilt)) scale(1); }
+  80%  { opacity: 1; transform: translate(-50%,-50%) rotate(var(--tilt)) scale(1); }
+  100% { opacity: 0; transform: translate(-50%,-62%) rotate(var(--tilt)) scale(.92); }
+}
+
 /* score, lives and the boss meter are drawn illustrated on the canvas;
    hide their HTML versions and drop the remaining text below them */
 #score, #hearts, #bossbar { display: none !important; }

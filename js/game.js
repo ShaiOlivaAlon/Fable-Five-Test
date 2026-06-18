@@ -69,6 +69,48 @@ const TROLL = {
   ],
 };
 
+/* random 80s-cartoon comic reactions — themed per world, fired sparingly so they
+   stay funny instead of nagging */
+const Comics = {
+  el: null, hideT: 0,
+  POOLS: {
+    hit:   ['OOF!', 'SKILL ISSUE', 'BONK!', "THAT'LL STAIN", 'GET GOOD, GROSSER', 'MY GRANDMA DODGES BETTER', 'OUCH-ARONI', 'L + RATIO'],
+    clear: ['WAVE WIPED!', 'EW-NORMOUS!', 'GROSS-TASTIC!', 'NOT BAD… FOR YOU', 'FLAWLESS-ISH', 'THEY NEVER STOOD A CHANCE'],
+    bonus: ['OOH SHINY', 'YOINK!', 'LOOT GOBLIN', 'FREE GUNK!', 'TASTY UPGRADE', 'GIMME GIMME'],
+  },
+  WORLD: {
+    0: { hit: ['TOO SWEET TO LIVE?', 'SUGAR CRASH!'], clear: ['CANDY CRUSHED!'] },
+    1: { hit: ['TRASHED!', 'YOU GOT DUMPSTERED'], clear: ['TAKING OUT THE TRASH'] },
+    2: { hit: ['EAT MY DUST', 'BONE-DRY SKILLS'], clear: ['DUST SETTLED'] },
+    3: { hit: ['FLUSHED AGAIN?', 'DOWN THE DRAIN'], clear: ['BOWL CLEANED'] },
+    4: { hit: ['ICE COLD, BRO', 'BRAIN FREEZE!'], clear: ['FREEZER DEFROSTED'] },
+    5: { hit: ['DEAD MEAT', 'GRAVE MISTAKE'], clear: ['REST IN PIECES'] },
+    6: { hit: ['THE VOID LAUGHS', 'REALITY BITES'], clear: ['THE ABYSS BLINKED'] },
+  },
+  init(el) { this.el = el; },
+  say(type, x, y, chance) {
+    if (!this.el || Math.random() > (chance || 0.4)) return;
+    const w = (typeof Level !== 'undefined' && Level.worldIdx) || 0;
+    let pool = (this.POOLS[type] || []).slice();
+    const wf = this.WORLD[w] && this.WORLD[w][type];
+    if (wf) pool = pool.concat(wf, wf); // weight world-specific lines
+    if (!pool.length) return;
+    const el = this.el, g = Game;
+    el.textContent = U.pick(pool);
+    let sx = x != null ? x * g.scale : g.W / 2;
+    let sy = y != null ? y * g.scale : g.H * 0.4;
+    el.style.left = U.clamp(sx, 90, g.W - 90) + 'px';
+    el.style.top = U.clamp(sy - 70, 70, g.H - 130) + 'px';
+    el.style.setProperty('--tilt', ((Math.random() * 16 - 8) | 0) + 'deg');
+    el.classList.remove('hit', 'clear', 'bonus', 'show');
+    void el.offsetWidth;
+    el.classList.add(type, 'show');
+    this.hideT = 1.3;
+    Sfx.comic(type);
+  },
+  update(dt) { if (this.hideT > 0 && (this.hideT -= dt) <= 0) this.el && this.el.classList.remove('show'); },
+};
+
 const Game = {
   canvas: null, ctx: null, dpr: 1,
   W: 0, H: 0, scale: 1, LW: 420, LH: 800,
@@ -103,6 +145,7 @@ const Game = {
       'hsentry-clear', 'hsname-clear', 'hssave-clear', 'scores-clear', 'gscores-clear',
     ];
     for (const id of ids) this.els[id] = document.getElementById(id);
+    Comics.init(document.getElementById('comic'));
     this.resize();
     this.player = new Player(this);
     let best = 0;
@@ -216,6 +259,7 @@ const Game = {
     BG.update(dt);
     Particles.update(dt);
     Popups.update(dt);
+    Comics.update(dt);
     for (let i = this.splats.length - 1; i >= 0; i--) {
       const s = this.splats[i];
       s.t += dt;
@@ -424,6 +468,12 @@ const Game = {
     } else if (Math.random() < 0.13) {
       this.powerups.push(new PowerUp(e.x, e.y, U.pick(['shield', 'over', 'mult', 'repair'])));
     }
+    this.kills = (this.kills || 0) + 1; // for adaptive difficulty
+    // wave-clear comic when this was the last enemy standing
+    if (!this.boss && Level.queue && Level.queue.length === 0 && this.enemies.length <= 1 &&
+        Level.waveIdx >= 0 && !Level.bossSpawned) {
+      Comics.say('clear', this.LW / 2, this.LH * 0.34, 0.55);
+    }
   },
 
   collect(u) {
@@ -442,6 +492,7 @@ const Game = {
     else if (k === 'mult') { p.mult = 2; p.multT = 12; label = 'SCORE ×2'; }
     else if (k === 'repair') { p.hp = Math.min(p.maxHp, p.hp + 1); label = 'TP PATCH'; }
     Popups.spawn(u.x, u.y, label, BOOSTS[k].color, 12);
+    Comics.say('bonus', u.x, u.y, 0.5);
   },
 
   spawnBoss() {
