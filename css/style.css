@@ -40,6 +40,12 @@ canvas { position: absolute; inset: 0; display: block; }
   box-shadow: 0 0 10px rgba(255,94,58,.35);
 }
 #btn-mute:active { transform: scale(.9); }
+
+/* score, lives and the boss meter are drawn illustrated on the canvas;
+   hide their HTML versions and drop the remaining text below them */
+#score, #hearts, #bossbar { display: none !important; }
+.hud-col.left { padding-top: 40px; }
+.hud-col.right { padding-top: 46px; }
 #flash.on { animation: flash .35s ease-out; }
 @keyframes flash { 0% { opacity: 1; } 100% { opacity: 0; } }
 

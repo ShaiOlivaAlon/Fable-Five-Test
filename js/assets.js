@@ -231,6 +231,20 @@ function py2i(px, py, w) { return py * w + px; }
 function sheetW(im) { return im.naturalWidth || im.width; }
 function sheetH(im) { return im.naturalHeight || im.height; }
 
+/* Draw one cell (index, row-major) of a uniform cols×rows sheet at the current
+   origin, sized dw×dh. Used for the illustrated HUD (slime digits, life hearts,
+   boss power meter). Returns false if the sheet isn't loaded so callers fall
+   back to the plain HTML HUD. */
+function drawSheetCell(ctx, sheet, idx, cols, rows, dw, dh) {
+  const img = Assets.imgs[sheet];
+  if (!Assets.ok(sheet) || !img) return false;
+  const W = sheetW(img), H = sheetH(img);
+  const cw = W / cols, ch = H / rows;
+  const col = idx % cols, row = (idx / cols) | 0;
+  ctx.drawImage(img, col * cw, row * ch, cw, ch, 0, 0, dw, dh);
+  return true;
+}
+
 /* Per-sprite frame table. Each entry:
      sheet : which SHEETS image
      fx,fy : normalised top-left of the FIRST frame

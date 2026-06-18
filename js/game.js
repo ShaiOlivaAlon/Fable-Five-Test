@@ -639,6 +639,50 @@ const Game = {
       }
     }
     Popups.draw(ctx);
+    if (this.state === 'playing') this.drawHUD(ctx);
+  },
+
+  // illustrated HUD drawn in screen pixels (slime score, numbered life heart,
+  // slime boss meter); falls back to the HTML HUD if a sheet isn't loaded
+  drawHUD(ctx) {
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    const padTop = 16;
+    // ---- score as slime digits, top-left ----
+    if (Assets.ok('slimenums')) {
+      const dh = 30;
+      let x = 14;
+      for (const c of this.score.toLocaleString()) {
+        if (c === ',') {
+          ctx.save(); ctx.translate(x, padTop); drawSheetCell(ctx, 'slimenums', 10, 4, 4, dh, dh); ctx.restore();
+          x += dh * 0.42;
+        } else {
+          const code = c.charCodeAt(0);
+          if (code >= 48 && code <= 57) {
+            ctx.save(); ctx.translate(x, padTop); drawSheetCell(ctx, 'slimenums', code - 48, 4, 4, dh, dh); ctx.restore();
+            x += dh * 0.64;
+          }
+        }
+      }
+    }
+    // ---- numbered pizza-heart lives, top-right ----
+    if (Assets.ok('heart') && this.player) {
+      const hv = U.clamp(this.player.hp | 0, 0, 5);
+      const hh = 40;
+      ctx.save();
+      ctx.translate(this.W - 14 - hh, padTop - 6);
+      drawSheetCell(ctx, 'heart', 5 - hv, 4, 4, hh, hh); // cells: 0=5lives … 5=0lives
+      ctx.restore();
+    }
+    // ---- slime power meter for the boss, top-centre ----
+    if (this.boss && Assets.ok('healthbar')) {
+      const f = U.clamp(this.boss.hp / this.boss.maxHp, 0, 1);
+      const idx = Math.round(f * 8); // cells 0..8 run empty→full
+      const bw = Math.min(300, this.W * 0.6), bh = bw * 0.5;
+      ctx.save();
+      ctx.translate((this.W - bw) / 2, padTop - 4);
+      drawSheetCell(ctx, 'healthbar', idx, 4, 4, bw, bh);
+      ctx.restore();
+    }
   },
 
   drawBeam(ctx) {
