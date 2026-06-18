@@ -480,8 +480,16 @@ class Boss {
     const tier = Level.tier || 0;
     this.world = Level.worldIdx || 0;
     this.cfg = BOSS_CFG[this.world] || BOSS_CFG[0];
-    this.maxHp = Math.round(1500 * (1 + tier * 0.3) * this.cfg.hp);
+    this.maxHp = Math.round(1200 * (1 + tier * 0.24) * this.cfg.hp); // less of an HP-sponge late
     this.hp = this.maxHp;
+    // hitbox derived from the drawn sprite so the WHOLE boss is hittable
+    this.hw = 70; this.hh = 110;
+    const bk = WORLDS[this.world] && WORLDS[this.world].bossSprite;
+    if (bk && SPR.ok(bk)) {
+      const bf = FRAMES[bk], fr = frameRects(bk), u = bf.h / fr.refH;
+      this.hw = Math.max(48, fr.refW * u * 0.45);
+      this.hh = bf.h * 0.44;
+    }
     this.x = g.LW / 2;
     this.y = -140;
     this.t = 0;
@@ -632,11 +640,9 @@ class Boss {
 
   hitTest(x, y, r) {
     if (this.state !== 'fight') return false;
-    return (
-      U.dist2(x, y, this.x, this.y) < (46 + r) * (46 + r) ||
-      U.dist2(x, y, this.x - 78, this.y - 4) < (26 + r) * (26 + r) ||
-      U.dist2(x, y, this.x + 78, this.y - 4) < (26 + r) * (26 + r)
-    );
+    const dx = (x - this.x) / (this.hw + r);
+    const dy = (y - this.y) / (this.hh + r);
+    return dx * dx + dy * dy < 1; // ellipse matching the drawn boss
   }
 
   damage(d, g) {
@@ -1182,6 +1188,8 @@ const Level = {
           this.betweenT = 1.6;
         } else if (!this.bossSpawned) {
           this.bossSpawned = true;
+          const bk = WORLDS[this.worldIdx].bossSprite;
+          if (bk && SPR.ok(bk)) frameRects(bk); // warm the slice now so the boss doesn't hitch on entry
           g.banner('⚠ ' + WORLDS[this.worldIdx].boss + ' ⚠', 'something huge just woke up. it’s mad at you', true);
           Sfx.alarm();
           this.queue = [{ d: 2.2, boss: true }];

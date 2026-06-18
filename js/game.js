@@ -203,6 +203,7 @@ const Game = {
     this.kills = 0;
     this.charge = 0;
     this.charging = false;
+    this.wasFiring = false;
     this.plasmas.length = 0;
     this.paused = false;
     this.els['screen-title'].classList.add('hidden');
@@ -225,7 +226,7 @@ const Game = {
     this.charge = 0;
     this.plasmas.push({
       x: this.player.x, y: this.player.y - 18, vy: -210, // slow + deliberate, so you aim it
-      r: 36 + power * 70, rMax: 70 + power * 130, dmg: 70 + power * 200,
+      r: 30 + power * 58, rMax: 58 + power * 100, dmg: 70 + power * 200,
       life: 2.6, hit: [], bossHit: false,
     });
     Sfx.beamBlast();
