@@ -221,19 +221,17 @@ const Game = {
   // orb + more damage.
   releaseCharge() {
     if (this.state !== 'playing' || this.paused || !this.player.alive) return;
-    if (this.charge < 0.4) return; // needs a real charge — quick taps don't fire it
-    const power = this.charge;
+    if (this.charge < 1) return; // only fires at FULL charge
     this.charge = 0;
     this.plasmas.push({
-      x: this.player.x, y: this.player.y - 18, vy: -210, // slow + deliberate, so you aim it
-      r: 30 + power * 58, rMax: 58 + power * 100, dmg: 70 + power * 200,
-      life: 2.6, hit: [], bossHit: false,
+      x: this.player.x, y: this.player.y - 18, vy: -235, // aim it deliberately
+      r: 32, rMax: 60, dmg: 120, life: 2.1, hit: [], bossHit: false,
     });
     Sfx.beamBlast();
-    this.shake(9 + power * 10);
-    this.hitstop = Math.max(this.hitstop, 0.07);
-    this.flash(`rgba(150,255,120,${0.2 + power * 0.2})`);
-    Particles.burst(this.player.x, this.player.y - 16, '#b7ff2e', 22, 320, { life: 0.5, size: 3.5 });
+    this.shake(10);
+    this.hitstop = Math.max(this.hitstop, 0.06);
+    this.flash('rgba(150,255,120,0.3)');
+    Particles.burst(this.player.x, this.player.y - 16, '#b7ff2e', 18, 300, { life: 0.45, size: 3 });
     Comics.say('bonus', this.player.x, this.player.y - 54, 0.4);
   },
 
@@ -412,7 +410,7 @@ const Game = {
     if (this.wasFiring && !firing) this.releaseCharge();
     this.charging = firing;
     this.wasFiring = firing;
-    this.charge = Math.min(1, this.charge + dt * (this.charging ? 0.34 : 0.012)); // slower, deliberate load
+    this.charge = Math.min(1, this.charge + dt * (this.charging ? 0.17 : 0)); // slow, deliberate — full takes ~6s
     // plasma orbs: fly up, melt every enemy inside their radius (once each)
     for (let i = this.plasmas.length - 1; i >= 0; i--) {
       const pl = this.plasmas[i];

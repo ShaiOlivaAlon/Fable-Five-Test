@@ -480,7 +480,7 @@ class Boss {
     const tier = Level.tier || 0;
     this.world = Level.worldIdx || 0;
     this.cfg = BOSS_CFG[this.world] || BOSS_CFG[0];
-    this.maxHp = Math.round(1200 * (1 + tier * 0.24) * this.cfg.hp); // less of an HP-sponge late
+    this.maxHp = Math.round(1350 * (1 + tier * 0.3) * this.cfg.hp); // tougher, scales per world
     this.hp = this.maxHp;
     // hitbox derived from the drawn sprite so the WHOLE boss is hittable
     this.hw = 70; this.hh = 110;
@@ -548,14 +548,16 @@ class Boss {
       return;
     }
 
-    // fight — drift side to side
+    // fight — drift side to side AND close in on the player as HP drops
     this.hitPop = Math.max(0, (this.hitPop || 0) - dt * 2.5);
-    const speed = this.phase === 2 ? 122 : 80;
+    const speed = this.phase === 2 ? 130 : 86;
     if (this.beamState !== 2) {
       this.x += this.dir * speed * dt;
       if (this.x > g.LW - 120) { this.x = g.LW - 120; this.dir = -1; }
       if (this.x < 120) { this.x = 120; this.dir = 1; }
     }
+    const targetY = Math.min(g.LH * 0.52, 150 + (1 - this.hp / this.maxHp) * 280);
+    this.y = U.lerp(this.y, targetY, Math.min(1, dt * 0.5));
 
     // ambient aura particles so the boss feels alive/powerful
     if (Math.random() < dt * 16) {
@@ -601,7 +603,7 @@ class Boss {
   attack() {
     const p = this.phase;
     this.tellT = 0.5; // show the attack/charge frame briefly
-    this.atkT = p === 2 ? U.rand(1.0, 1.7) : U.rand(1.5, 2.2); // faster in phase 2
+    this.atkT = (p === 2 ? U.rand(1.0, 1.7) : U.rand(1.5, 2.2)) * (1 - Math.min(0.45, (Level.tier || 0) * 0.06)); // faster per world
     const pats = this.cfg.patterns;
     let pat = pats[this.patI % pats.length];
     this.patI++;
@@ -616,14 +618,14 @@ class Boss {
 
   // distinct bullet patterns; each boss cycles its own subset (see BOSS_CFG)
   firePattern(pat, p) {
-    const g = this.g, sp = (Level.spdMul || 1);
+    const g = this.g, sp = (Level.spdMul || 1), tier = Level.tier || 0;
     const bx = this.x, by = this.y + 30;
     const shoot = (ang, speed, r, type) => g.ebullets.push({ x: bx, y: by, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, r: r || 5, type: type || 'orb', dead: false });
     const toP = U.angTo(bx, by, g.player.x, g.player.y);
     if (pat === 'aimed3') { for (let i = 0; i < 3; i++) shoot(toP + (i - 1) * 0.10, 300 * sp, 6, 'orb'); Sfx.enemyShoot(); }
-    else if (pat === 'aimed5') { for (let i = 0; i < 5; i++) shoot(toP + (i - 2) * 0.12, 295 * sp, 6, 'orb'); Sfx.enemyShoot(); }
-    else if (pat === 'fan') { const n = p === 2 ? 15 : 11; for (let i = 0; i < n; i++) shoot(Math.PI / 2 + (i - (n - 1) / 2) * 0.19, 215 * sp, 5, 'orb2'); Sfx.enemyShoot(); }
-    else if (pat === 'ring') { const n = p === 2 ? 22 : 16; for (let i = 0; i < n; i++) shoot((i / n) * U.TAU, 185 * sp, 5, 'orb'); Sfx.boom(0.45); }
+    else if (pat === 'aimed5') { const n = 5 + (tier > 3 ? 2 : 0); for (let i = 0; i < n; i++) shoot(toP + (i - (n - 1) / 2) * 0.12, 295 * sp, 6, 'orb'); Sfx.enemyShoot(); }
+    else if (pat === 'fan') { const n = (p === 2 ? 15 : 11) + tier; for (let i = 0; i < n; i++) shoot(Math.PI / 2 + (i - (n - 1) / 2) * 0.19, 215 * sp, 5, 'orb2'); Sfx.enemyShoot(); }
+    else if (pat === 'ring') { const n = (p === 2 ? 22 : 16) + tier * 2; for (let i = 0; i < n; i++) shoot((i / n) * U.TAU, 185 * sp, 5, 'orb'); Sfx.boom(0.45); }
     else if (pat === 'spiral') { for (let k = 0; k < 3; k++) { this.spiralA += 0.55; for (let arm = 0; arm < 3; arm++) shoot(this.spiralA + arm * (U.TAU / 3), 235 * sp, 5, 'orb'); } Sfx.enemyShoot(); }
     else if (pat === 'ice') { for (let i = 0; i < 4; i++) shoot(toP + (i - 1.5) * 0.16, 155 * sp, 9, 'orb2'); Sfx.boom(0.45); }
     else if (pat === 'lob') { for (let i = 0; i < 6; i++) shoot(Math.PI / 2 + (i - 2.5) * 0.17, 165 * sp, 6, 'orb'); Sfx.enemyShoot(); }
@@ -1092,13 +1094,13 @@ function shiftSpawns(arr, dt) { return arr.map(p => ({ d: p.d + dt, e: p.e, gift
    so no two worlds play the same. Gifts drop at fixed beats: a signature weapon
    on wave 2, a utility pickup on wave 4, a power weapon right before the boss. */
 const PLANS = [
-  ['swoop', 'sentry', 'split', 'grid', 'dive', 'pincer'],       // 1 candy
-  ['grid', 'pincer', 'split', 'sentry', 'dive', 'grid'],        // 2 trash
-  ['sentry', 'swoop', 'dive', 'split', 'pincer', 'sentry'],     // 3 desert
-  ['pincer', 'split', 'sentry', 'dive', 'grid', 'split'],       // 4 toilet
-  ['grid', 'dive', 'swoop', 'split', 'sentry', 'dive'],         // 5 freezer
-  ['dive', 'split', 'sentry', 'swoop', 'pincer', 'dive'],       // 6 graveyard
-  ['pincer', 'grid', 'dive', 'split', 'sentry', 'mix', 'mix'],  // 7 abyss
+  ['swoop', 'sentry', 'split', 'grid', 'dive', 'pincer', 'sentry', 'mix'],            // 1 candy
+  ['grid', 'pincer', 'split', 'sentry', 'dive', 'grid', 'pincer', 'mix'],             // 2 trash
+  ['sentry', 'swoop', 'dive', 'split', 'pincer', 'sentry', 'dive', 'mix'],            // 3 desert
+  ['pincer', 'split', 'sentry', 'dive', 'grid', 'split', 'sentry', 'mix', 'mix'],     // 4 toilet
+  ['grid', 'dive', 'swoop', 'split', 'sentry', 'dive', 'grid', 'mix', 'mix'],         // 5 freezer
+  ['dive', 'split', 'sentry', 'swoop', 'pincer', 'dive', 'sentry', 'mix', 'mix'],     // 6 graveyard
+  ['pincer', 'grid', 'dive', 'split', 'sentry', 'mix', 'pincer', 'dive', 'mix', 'mix'], // 7 abyss
 ];
 const WAVE_SUBS = [
   'incoming · wipe them out', 'they brought friends', 'this is the gross part',
@@ -1119,9 +1121,9 @@ const Level = {
   loadWorld(g, idx) {
     this.worldIdx = idx;
     this.tier = idx;
-    this.hpMul = 1 + idx * 0.20;                    // enemies get tankier
-    this.spdMul = 1 + idx * 0.06;                   // shots fly a little faster
-    this.fireMul = Math.max(0.55, 1 - idx * 0.08);  // and come more often
+    this.hpMul = 1 + idx * 0.24;                    // enemies get tankier
+    this.spdMul = 1 + idx * 0.09;                   // shots fly faster
+    this.fireMul = Math.max(0.42, 1 - idx * 0.10);  // and come more often
     this.waveIdx = -1;
     this.queue = [];
     this.betweenT = 1.4;
@@ -1140,19 +1142,23 @@ const Level = {
   build(g) {
     const idx = this.worldIdx;
     const plan = PLANS[idx] || PLANS[0];
+    // narrow (mobile portrait) screens fit fewer enemies and shots travel farther,
+    // so pack in more to keep the pressure up
+    const mob = g.LW < 620 ? 2 : 0;
+    const m = (n) => n + mob;
     const waves = [];
     for (let w = 0; w < plan.length; w++) {
       const t = plan[w];
-      const bump = idx + (w >> 1); // more enemies later in the world and in later worlds
+      const bump = idx + (w >> 1) + mob; // more enemies later, in later worlds, and on mobile
       let parts;
-      if (t === 'swoop') parts = fSwoop(g, 6 + bump, 'drone');
-      else if (t === 'grid') parts = fGrid(g, Math.min(7, 5 + (idx >> 1)), 2 + (w > 2 ? 1 : 0), 'drone');
-      else if (t === 'sentry') parts = fSentry(g, 3 + (idx >> 1), 'sentry').concat(shiftSpawns(fSwoop(g, 3 + idx, 'drone'), 1.1));
-      else if (t === 'split') parts = fSplit(g, 3 + (bump >> 1), 'splitter');
-      else if (t === 'dive') parts = fDive(g, 5 + bump, 'diver', idx >= 4);
-      else if (t === 'pincer') parts = fPincer(g, 6 + bump, 'drone');
-      else parts = fDive(g, 4 + idx, 'diver', true) // 'mix' — abyss chaos
-        .concat(shiftSpawns(fSplit(g, 3, 'splitter'), 0.6), shiftSpawns(fSentry(g, 2, 'sentry'), 1.4));
+      if (t === 'swoop') parts = fSwoop(g, 8 + bump, 'drone');
+      else if (t === 'grid') parts = fGrid(g, Math.min(8, 6 + (idx >> 1)), 2 + (w > 1 ? 1 : 0), 'drone');
+      else if (t === 'sentry') parts = fSentry(g, m(3) + (idx >> 1), 'sentry').concat(shiftSpawns(fSwoop(g, 4 + idx, 'drone'), 1.1));
+      else if (t === 'split') parts = fSplit(g, m(4) + (bump >> 1), 'splitter');
+      else if (t === 'dive') parts = fDive(g, 7 + bump, 'diver', idx >= 3);
+      else if (t === 'pincer') parts = fPincer(g, 8 + bump, 'drone');
+      else parts = fDive(g, 6 + idx + mob, 'diver', true) // 'mix' — chaos
+        .concat(shiftSpawns(fSplit(g, m(3), 'splitter'), 0.6), shiftSpawns(fSentry(g, m(2), 'sentry'), 1.4));
       const list = [];
       if (w === 1) list.push({ d: 0.3, gift: GIFT_SIG[idx] });        // signature weapon
       else if (w === 3) list.push({ d: 0.3, gift: GIFT_UTIL[idx] });  // utility pickup
