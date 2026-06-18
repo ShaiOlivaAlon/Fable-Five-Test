@@ -174,15 +174,13 @@ function googly(ctx, x, y, r, px, py) {
 }
 
 function drawEnemyShape(ctx, e, t, flash) {
-  // painted enemy sprite — try hurt/death variant first, then base
-  const _eBase = 'enemy_' + e.type;
-  const _eKey = flash && SPR.ok(_eBase + '_hurt') ? _eBase + '_hurt' : _eBase;
-  if (SPR.local(ctx, _eKey, t + e.ph)) {
-    if (flash) SPR.flash(ctx, _eKey);
-    return;
-  }
-  if (_eKey !== _eBase && SPR.local(ctx, _eBase, t + e.ph)) {
-    if (flash) SPR.flash(ctx, _eBase);
+  // painted per-world enemy sprite (mite reuses the world's splitter, smaller)
+  const wd = WORLDS[Level.worldIdx];
+  const role = e.type === 'mite' ? 'splitter' : e.type;
+  const key = wd && wd.enemies ? wd.enemies[role] : null;
+  const sc = e.type === 'mite' ? 0.58 : 1;
+  if (key && SPR.local(ctx, key, t + e.ph, sc)) {
+    if (flash) SPR.flash(ctx, key, sc);
     return;
   }
   const c = e.spec.color;
@@ -617,12 +615,10 @@ class Boss {
       ctx.globalAlpha = 0.85 + Math.sin(t * 40) * 0.15;
     }
 
-    // painted boss sprite — pick state-appropriate animation row
-    const _bKey = this.state === 'dying' && SPR.ok('boss_death') ? 'boss_death' :
-                  (this.flash > 0 && SPR.ok('boss_hurt')) ? 'boss_hurt' :
-                  (this.beamState > 0 && SPR.ok('boss_shoot')) ? 'boss_shoot' : 'boss';
-    if (SPR.local(ctx, _bKey, t) || (_bKey !== 'boss' && SPR.local(ctx, 'boss', t))) {
-      if (this.flash > 0) SPR.flash(ctx, _bKey);
+    // painted per-world boss sprite (single 8-frame strip)
+    const bKey = WORLDS[Level.worldIdx] && WORLDS[Level.worldIdx].bossSprite;
+    if (bKey && SPR.local(ctx, bKey, t)) {
+      if (this.flash > 0) SPR.flash(ctx, bKey);
       ctx.restore();
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
@@ -909,22 +905,120 @@ class Boss {
    no video → static image → procedural; missing music simply stays silent. */
 const WORLDS = [
   { name: 'ROTTEN CANDY CAROUSEL', sub: 'the donuts smell you already',
-    video: 'level1_bg.mp4',     fallback: 'level1_bg.png', music: 'audio/lvl1.mp3',  boss: 'THE GREAT CAKE OVERLORD' },
+    video: 'level1_bg.mp4',     fallback: 'level1_bg.png', music: 'audio/lvl1.mp3',  boss: 'KING CAVITY CAROUSEL',
+    bossSprite: 'king_cavity',
+    enemies: { drone: 'wrapper_wasp', sentry: 'lollipop_leech', splitter: 'gummy_goblin', diver: 'sour_blob_pop' } },
   { name: 'TRASH MOON BUFFET',    sub: 'leftovers that learned to bite back',
-    video: 'worlds/world2.mp4', fallback: null,            music: 'audio/world2.mp3', boss: 'THE MOLDY BURGER KING' },
+    video: 'worlds/world2.mp4', fallback: null,            music: 'audio/world2.mp3', boss: 'BUFFET DUMPSTER SUPREME',
+    bossSprite: 'buffet_dumpster',
+    enemies: { drone: 'trash_bag_bat', sentry: 'rotten_broccoli', splitter: 'moldy_meatball', diver: 'pizza_crab' } },
   { name: 'DIRTY DESERT WORLD',   sub: 'sand, dust and regret',
-    video: 'worlds/world3.mp4', fallback: null,            music: 'audio/world3.mp3', boss: 'THE DUST MUMMY' },
+    video: 'worlds/world3.mp4', fallback: null,            music: 'audio/world3.mp3', boss: 'BARON DUSTGUT',
+    bossSprite: 'baron_dustgut',
+    enemies: { drone: 'dust_bunny', sentry: 'cactus_crumb', splitter: 'sandbag_slug', diver: 'vacuum_fossil' } },
   { name: 'TOILET ORBIT',         sub: 'you really came all this way for this',
-    video: 'worlds/world4.mp4', fallback: null,            music: 'audio/world4.mp3', boss: 'THE PORCELAIN THRONE' },
+    video: 'worlds/world4.mp4', fallback: null,            music: 'audio/world4.mp3', boss: 'GRAND FLUSH ABOMINATION',
+    bossSprite: 'grand_flush',
+    enemies: { drone: 'plunger_parasite', sentry: 'urinal_cake', splitter: 'hair_clog', diver: 'tp_mummy' } },
   { name: 'FREEZER BURN SECTOR',  sub: 'expired in 2009, still furious',
-    video: 'worlds/world5.mp4', fallback: null,            music: 'audio/world5.mp3', boss: 'THE MYSTERY MEATBALL' },
+    video: 'worlds/world5.mp4', fallback: null,            music: 'audio/world5.mp3', boss: 'FREEZER BURN BEHEMOTH',
+    bossSprite: 'freezer_behemoth',
+    enemies: { drone: 'frozen_pea', sentry: 'tv_dinner', splitter: 'ice_cream', diver: 'fish_stick' } },
   { name: 'GRAVEYARD MEAT MOON',  sub: 'the worms remember your face',
-    video: 'worlds/world6.mp4', fallback: null,            music: 'audio/world6.mp3', boss: 'THE ZOMBIE BUTCHER' },
+    video: 'worlds/world6.mp4', fallback: null,            music: 'audio/world6.mp3', boss: 'MEAT MOON NECRO-MAW',
+    bossSprite: 'meat_necro',
+    enemies: { drone: 'bone_bat', sentry: 'tombstone_toad', splitter: 'worm_rider', diver: 'zombie_hand' } },
   { name: 'THE ABYSS',            sub: 'there is no bottom, only gross',
-    video: 'worlds/world7.mp4', fallback: null,            music: 'audio/world7.mp3', boss: 'THE ALL-SEEING SLOP' },
+    video: 'worlds/world7.mp4', fallback: null,            music: 'audio/world7.mp3', boss: 'THE GROSS SINGULARITY',
+    bossSprite: 'gross_singularity', ending: 'worlds/ending.mp4',
+    enemies: { drone: 'reality_roach', sentry: 'condiment_demon', splitter: 'void_pickle', diver: 'sock_madness' } },
   // NOTE: static fallback PNGs for worlds 2-7 not yet supplied (worlds without a
   // video fall back to the procedural background until those images arrive).
 ];
+
+/* ---- wave formation helpers — each returns an array of timed spawn entries.
+   'type' is the BEHAVIOUR role (drone/sentry/splitter/diver); the sprite shown
+   is chosen per world in drawEnemyShape, so the same formation reads differently
+   in each world. Mixing these in varied orders is what keeps levels from
+   feeling identical. ---- */
+function fSwoop(g, n, type) {
+  const LW = g.LW, cx = LW / 2, out = [];
+  for (let i = 0; i < n; i++) {
+    const s = i % 2 ? 1 : -1;
+    out.push({ d: i * 0.17, e: () => new Enemy(type, {
+      from: { x: s < 0 ? -36 : LW + 36, y: 130 },
+      c1: { x: cx, y: 300 }, c2: { x: cx - s * 110, y: 60 },
+      slot: { x: cx + s * (34 + (i >> 1) * 40), y: 110 + (i % 3) * 30 }, dur: 1.8,
+    }) });
+  }
+  return out;
+}
+function fGrid(g, cols, rows, type) {
+  const LW = g.LW, cx = LW / 2, out = [];
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const sx = cx + (c - (cols - 1) / 2) * 50, sy = 84 + r * 44;
+    out.push({ d: (r * cols + c) * 0.07, e: () => new Enemy(type, {
+      from: { x: sx > cx ? LW + 40 : -40, y: -20 }, slot: { x: sx, y: sy }, dur: 1.5, sway: 24,
+    }) });
+  }
+  return out;
+}
+function fSentry(g, n, type) {
+  const LW = g.LW, out = [];
+  for (let i = 0; i < n; i++) out.push({ d: i * 0.3, e: () => new Enemy(type, {
+    from: { x: 40 + i * 40, y: -50 }, slot: { x: 56 + i * (LW - 112) / Math.max(1, n - 1), y: 96 }, dur: 1.5,
+  }) });
+  return out;
+}
+function fSplit(g, n, type) {
+  const LW = g.LW, out = [];
+  for (let i = 0; i < n; i++) out.push({ d: 0.3 + i * 0.55, e: () => new Enemy(type, {
+    from: { x: U.rand(50, LW - 50), y: -40 }, slot: { x: U.rand(60, LW - 60), y: U.rand(50, 120) }, dur: 1.05,
+  }) });
+  return out;
+}
+function fDive(g, n, type, fast) {
+  const LW = g.LW, out = [];
+  for (let i = 0; i < n; i++) out.push({ d: i * (fast ? 0.3 : 0.42), e: () => new Enemy(type, {
+    from: { x: i % 2 ? -30 : LW + 30, y: 38 + (i % 3) * 24 },
+    slot: { x: U.rand(60, LW - 60), y: 66 + (i % 3) * 26 }, dur: fast ? 0.85 : 1.05,
+    diveDelay: U.rand(0.25, fast ? 0.9 : 1.4),
+  }) });
+  return out;
+}
+function fPincer(g, n, type) {
+  const LW = g.LW, cx = LW / 2, out = [];
+  for (let i = 0; i < n; i++) {
+    const s = i % 2 ? 1 : -1;
+    out.push({ d: i * 0.15, e: () => new Enemy(type, {
+      from: { x: s < 0 ? -36 : LW + 36, y: 90 + (i % 3) * 18 },
+      slot: { x: cx + s * (30 + (i >> 1) * 42), y: 118 + (i % 2) * 38 }, dur: 1.6,
+    }) });
+  }
+  return out;
+}
+function shiftSpawns(arr, dt) { return arr.map(p => ({ d: p.d + dt, e: p.e, gift: p.gift })); }
+
+/* Each world runs a different ordered sequence of formations (its "rhythm"),
+   so no two worlds play the same. Gifts drop at fixed beats: a signature weapon
+   on wave 2, a utility pickup on wave 4, a power weapon right before the boss. */
+const PLANS = [
+  ['swoop', 'sentry', 'split', 'grid', 'dive', 'pincer'],       // 1 candy
+  ['grid', 'pincer', 'split', 'sentry', 'dive', 'grid'],        // 2 trash
+  ['sentry', 'swoop', 'dive', 'split', 'pincer', 'sentry'],     // 3 desert
+  ['pincer', 'split', 'sentry', 'dive', 'grid', 'split'],       // 4 toilet
+  ['grid', 'dive', 'swoop', 'split', 'sentry', 'dive'],         // 5 freezer
+  ['dive', 'split', 'sentry', 'swoop', 'pincer', 'dive'],       // 6 graveyard
+  ['pincer', 'grid', 'dive', 'split', 'sentry', 'mix', 'mix'],  // 7 abyss
+];
+const WAVE_SUBS = [
+  'incoming · wipe them out', 'they brought friends', 'this is the gross part',
+  'do not let them land', 'getting worse, huh', 'okay this is just rude',
+  'almost there · probably not', 'last push before the big one',
+];
+const GIFT_SIG = ['scatter', 'missile', 'beam', 'scatter', 'missile', 'beam', 'beam'];
+const GIFT_UTIL = ['shield', 'mult', 'repair', 'over', 'shield', 'repair', 'over'];
+const GIFT_BIG = ['beam', 'beam', 'missile', 'beam', 'missile', 'beam', 'beam'];
 
 const Level = {
   waves: [], waveIdx: -1, queue: [], betweenT: 0, bossSpawned: false, done: false,
@@ -955,133 +1049,28 @@ const Level = {
   },
 
   build(g) {
-    const LW = g.LW, cx = LW / 2;
+    const idx = this.worldIdx;
+    const plan = PLANS[idx] || PLANS[0];
     const waves = [];
-
-    // W1 — mirrored donut swoops
-    {
+    for (let w = 0; w < plan.length; w++) {
+      const t = plan[w];
+      const bump = idx + (w >> 1); // more enemies later in the world and in later worlds
+      let parts;
+      if (t === 'swoop') parts = fSwoop(g, 6 + bump, 'drone');
+      else if (t === 'grid') parts = fGrid(g, Math.min(7, 5 + (idx >> 1)), 2 + (w > 2 ? 1 : 0), 'drone');
+      else if (t === 'sentry') parts = fSentry(g, 3 + (idx >> 1), 'sentry').concat(shiftSpawns(fSwoop(g, 3 + idx, 'drone'), 1.1));
+      else if (t === 'split') parts = fSplit(g, 3 + (bump >> 1), 'splitter');
+      else if (t === 'dive') parts = fDive(g, 5 + bump, 'diver', idx >= 4);
+      else if (t === 'pincer') parts = fPincer(g, 6 + bump, 'drone');
+      else parts = fDive(g, 4 + idx, 'diver', true) // 'mix' — abyss chaos
+        .concat(shiftSpawns(fSplit(g, 3, 'splitter'), 0.6), shiftSpawns(fSentry(g, 2, 'sentry'), 1.4));
       const list = [];
-      for (let i = 0; i < 4; i++) {
-        list.push({ d: i * 0.22, e: () => new Enemy('drone', {
-          from: { x: -36, y: 140 }, c1: { x: LW * 0.3, y: 330 }, c2: { x: LW * 0.78, y: 50 },
-          slot: { x: cx - 32 - i * 40, y: 120 }, dur: 1.9,
-        }) });
-        list.push({ d: i * 0.22 + 0.11, e: () => new Enemy('drone', {
-          from: { x: LW + 36, y: 140 }, c1: { x: LW * 0.7, y: 330 }, c2: { x: LW * 0.22, y: 50 },
-          slot: { x: cx + 32 + i * 40, y: 172 }, dur: 1.9,
-        }) });
-      }
-      waves.push({ name: 'WAVE 1', sub: 'the donuts smell you already', list });
+      if (w === 1) list.push({ d: 0.3, gift: GIFT_SIG[idx] });        // signature weapon
+      else if (w === 3) list.push({ d: 0.3, gift: GIFT_UTIL[idx] });  // utility pickup
+      if (w === plan.length - 1) list.push({ d: 0.3, gift: GIFT_BIG[idx] }); // power weapon before boss
+      for (const p of parts) list.push(p);
+      waves.push({ name: 'WAVE ' + (w + 1), sub: WAVE_SUBS[(w + idx) % WAVE_SUBS.length], list });
     }
-
-    // W2 — toilet line + donut curtain; gift: scatter
-    {
-      const list = [{ d: 0.3, gift: 'scatter' }];
-      for (let i = 0; i < 3; i++) {
-        list.push({ d: 0.2 + i * 0.3, e: () => new Enemy('sentry', {
-          from: { x: cx + (i - 1) * 60, y: -50 }, slot: { x: cx + (i - 1) * 112, y: 108 }, dur: 1.6,
-        }) });
-      }
-      for (let i = 0; i < 6; i++) {
-        list.push({ d: 1 + i * 0.18, e: () => new Enemy('drone', {
-          from: { x: i % 2 ? -36 : LW + 36, y: 90 },
-          slot: { x: 60 + (i * (LW - 120)) / 5, y: 205 }, dur: 1.7,
-        }) });
-      }
-      waves.push({ name: 'WAVE 2', sub: 'toilets inbound. they want a word', list });
-    }
-
-    // W3 — snot blobs + pickles; gift: anchovies
-    {
-      const list = [{ d: 0.4, gift: 'missile' }];
-      for (let i = 0; i < 4; i++) {
-        list.push({ d: 0.5 + i * 0.9, e: () => new Enemy('splitter', {
-          from: { x: U.rand(50, LW - 50), y: -40 },
-          slot: { x: U.rand(60, LW - 60), y: U.rand(60, 120) }, dur: 1.2,
-        }) });
-      }
-      for (let i = 0; i < 3; i++) {
-        list.push({ d: 1.5 + i * 1.1, e: () => new Enemy('diver', {
-          from: { x: i % 2 ? -30 : LW + 30, y: 60 },
-          slot: { x: U.rand(80, LW - 80), y: 90 }, dur: 1.2,
-          diveDelay: U.rand(0.6, 1.6),
-        }) });
-      }
-      waves.push({ name: 'WAVE 3', sub: 'snot blobs split. you panic. ew', list });
-    }
-
-    // W4 — classic invader grid + flanking toilets; gift: mustard beam
-    {
-      const list = [{ d: 0.4, gift: 'beam' }];
-      const cols = 6, rows = 3;
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const sx = cx + (c - (cols - 1) / 2) * 52, sy = 88 + r * 46;
-          list.push({ d: (r * cols + c) * 0.08, e: () => new Enemy('drone', {
-            from: { x: sx > cx ? LW + 40 : -40, y: -20 },
-            slot: { x: sx, y: sy }, dur: 1.6, sway: 26,
-          }) });
-        }
-      }
-      list.push({ d: 2.2, e: () => new Enemy('sentry', { from: { x: -40, y: 240 }, slot: { x: 70, y: 235 }, dur: 1.4 }) });
-      list.push({ d: 2.4, e: () => new Enemy('sentry', { from: { x: LW + 40, y: 240 }, slot: { x: LW - 70, y: 235 }, dur: 1.4 }) });
-      waves.push({ name: 'WAVE 4', sub: 'a dozen donuts in formation. good luck', list });
-    }
-
-    // W5 — pickle rush + chaos
-    {
-      const list = [];
-      for (let i = 0; i < 6; i++) {
-        list.push({ d: i * 0.5, e: () => new Enemy('diver', {
-          from: { x: i % 2 ? -30 : LW + 30, y: 50 + (i % 3) * 30 },
-          slot: { x: U.rand(60, LW - 60), y: 80 + (i % 3) * 30 }, dur: 1.1,
-          diveDelay: U.rand(0.4, 1.2),
-        }) });
-      }
-      for (let i = 0; i < 3; i++) {
-        list.push({ d: 0.8 + i * 0.8, e: () => new Enemy('splitter', {
-          from: { x: U.rand(50, LW - 50), y: -40 },
-          slot: { x: U.rand(60, LW - 60), y: U.rand(50, 110) }, dur: 1.1,
-        }) });
-      }
-      list.push({ d: 2, e: () => new Enemy('sentry', { from: { x: cx, y: -50 }, slot: { x: cx, y: 128 }, dur: 1.4 }) });
-      waves.push({ name: 'WAVE 5', sub: 'last call before the big flush', list });
-    }
-
-    // W6 — maximum gross: everything at once, faster timings
-    {
-      const list = [{ d: 0.2, gift: 'over' }];
-      // 4 splitters rapid-fire
-      for (let i = 0; i < 4; i++) {
-        list.push({ d: 0.3 + i * 0.5, e: () => new Enemy('splitter', {
-          from: { x: U.rand(50, LW - 50), y: -40 },
-          slot: { x: U.rand(60, LW - 60), y: U.rand(50, 100) }, dur: 0.95,
-        }) });
-      }
-      // 8 fast divers, tight overlap
-      for (let i = 0; i < 8; i++) {
-        list.push({ d: 0.5 + i * 0.32, e: () => new Enemy('diver', {
-          from: { x: i % 2 ? -30 : LW + 30, y: 36 + (i % 4) * 22 },
-          slot: { x: U.rand(60, LW - 60), y: 68 + (i % 3) * 28 }, dur: 0.85,
-          diveDelay: U.rand(0.2, 0.8),
-        }) });
-      }
-      // 3 sentries: flanks + centre
-      list.push({ d: 0.9,  e: () => new Enemy('sentry', { from: { x: 40,       y: -50 }, slot: { x: 82,        y: 96 }, dur: 1.2 }) });
-      list.push({ d: 1.1,  e: () => new Enemy('sentry', { from: { x: LW - 40,  y: -50 }, slot: { x: LW - 82,   y: 96 }, dur: 1.2 }) });
-      list.push({ d: 2.4,  e: () => new Enemy('sentry', { from: { x: cx,       y: -50 }, slot: { x: cx,        y: 136 }, dur: 1.2 }) });
-      // 2 late splitters to wreck any cleanup attempt
-      list.push({ d: 3.0, e: () => new Enemy('splitter', {
-        from: { x: U.rand(50, LW - 50), y: -40 },
-        slot: { x: U.rand(60, LW - 60), y: U.rand(60, 120) }, dur: 1.0,
-      }) });
-      list.push({ d: 3.8, e: () => new Enemy('splitter', {
-        from: { x: U.rand(50, LW - 50), y: -40 },
-        slot: { x: U.rand(60, LW - 60), y: U.rand(60, 120) }, dur: 1.0,
-      }) });
-      waves.push({ name: 'WAVE 6', sub: 'everything at once. you asked for this', list });
-    }
-
     return waves;
   },
 

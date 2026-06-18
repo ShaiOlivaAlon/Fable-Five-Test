@@ -37,14 +37,49 @@ const Assets = {
     coffee:      'latte_macchiato_enemy_sprite_sheet_42675f01ab9e447c845885d906425a4a.png',
     banana:      'banana_peel_spaceship_sprite_sheet_315540e2440d449faed2f1c0a09a97e3.png',
     shoe:        'smelly_shoe_spaceship_sprite_sheet_89e123db1a404ed3979939fb319d4f4d.png',
-    magazine:    'censored_tabloid_powerup_sprite_sheet_70b8bb868be3462681e8007385610d68.png',
-    coin:        'greasy_mutant_coin_sprite_sheet_5c537dfd40cb47dd925d68a120ef225b.png',
-    pickle:      'lumpy_pickle_spaceship_sprite_sheet_805c387103c84ba7b5470055c77ef97c.png',
-    yogamat:     'rolled_yoga_mat_enemy_f2e96230359e425299c5eaccf2b58ad4.png',
-    toilet:      'toilet_enemy_sprite_sheet_ffb151cd785249f7919058cb5a094ce6.png',
-    cake:        'disgusting_birthday_cake_enemy_792d7171229949698ce4ad9892300ede.png',
-    unicorn:     'gross_unicorn_enemy_sprite_sheet_fb7ed70a85bc4621b1aa188a717512a5.png',
-    bubbletea:   'bubble_tea_enemy_sprite_sheet_3251360ef3074607a9093f3f296160e4.png',
+    // ---- per-world enemies + bosses (8-frame strips, white bg pre-keyed) ----
+    // world 1 · Rotten Candy Carousel
+    wrapper_wasp:   'enemies/wrapper_wasp.png',
+    lollipop_leech: 'enemies/lollipop_leech.png',
+    gummy_goblin:   'enemies/gummy_goblin.png',
+    sour_blob_pop:  'enemies/sour_blob_pop.png',
+    king_cavity:    'enemies/king_cavity.png',
+    // world 2 · Trash Moon Buffet
+    trash_bag_bat:   'enemies/trash_bag_bat.png',
+    rotten_broccoli: 'enemies/rotten_broccoli.png',
+    moldy_meatball:  'enemies/moldy_meatball.png',
+    pizza_crab:      'enemies/pizza_crab.png',
+    buffet_dumpster: 'enemies/buffet_dumpster.png',
+    // world 3 · Dirty Desert World
+    dust_bunny:    'enemies/dust_bunny.png',
+    cactus_crumb:  'enemies/cactus_crumb.png',
+    sandbag_slug:  'enemies/sandbag_slug.png',
+    vacuum_fossil: 'enemies/vacuum_fossil.png',
+    baron_dustgut: 'enemies/baron_dustgut.png',
+    // world 4 · Toilet Orbit
+    plunger_parasite: 'enemies/plunger_parasite.png',
+    urinal_cake:      'enemies/urinal_cake.png',
+    hair_clog:        'enemies/hair_clog.png',
+    tp_mummy:         'enemies/tp_mummy.png',
+    grand_flush:      'enemies/grand_flush.png',
+    // world 5 · Freezer Burn Sector
+    frozen_pea:       'enemies/frozen_pea.png',
+    tv_dinner:        'enemies/tv_dinner.png',
+    ice_cream:        'enemies/ice_cream.png',
+    fish_stick:       'enemies/fish_stick.png',
+    freezer_behemoth: 'enemies/freezer_behemoth.png',
+    // world 6 · Graveyard Meat Moon
+    bone_bat:       'enemies/bone_bat.png',
+    tombstone_toad: 'enemies/tombstone_toad.png',
+    worm_rider:     'enemies/worm_rider.png',
+    zombie_hand:    'enemies/zombie_hand.png',
+    meat_necro:     'enemies/meat_necro.png',
+    // world 7 · The Abyss
+    reality_roach:     'enemies/reality_roach.png',
+    condiment_demon:   'enemies/condiment_demon.png',
+    void_pickle:       'enemies/void_pickle.png',
+    sock_madness:      'enemies/sock_madness.png',
+    gross_singularity: 'enemies/gross_singularity.png',
     bag:         'mystery_space_dust_bag_a25c487a0e0149a490bbe5ba25a8a558.png',
     barfbag:     'barf_bag_bomb_sprite_sheet_942436b59b124904b670796d7260c5ae.png',
     alien_leaf:  'alien_leaf_powerup_sprite_sheet_1ca6ee5c5abf481a849c6356f3d4c217.png',
@@ -326,6 +361,50 @@ const FRAMES = {
 
   // ---- boss warning banner (bossalert.png 4×4) ----
   boss_alert:          { sheet: 'bossalert', fx: 0, fy: 0,    fw: 0.25, fh: 0.25, n: 4, fps: 10, h: 80 },
+
+  // ---- per-world enemies & bosses (single row of 8 frames) ----
+  // roles: drone h64 · sentry h80 · splitter h66 · diver h64 · boss h240
+  wrapper_wasp:      { sheet: 'wrapper_wasp',   fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 11, h: 64 },
+  lollipop_leech:    { sheet: 'lollipop_leech', fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 9,  h: 80 },
+  gummy_goblin:      { sheet: 'gummy_goblin',   fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 10, h: 66 },
+  sour_blob_pop:     { sheet: 'sour_blob_pop',  fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 10, h: 64 },
+  king_cavity:       { sheet: 'king_cavity',    fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 8,  h: 240 },
+
+  trash_bag_bat:     { sheet: 'trash_bag_bat',   fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 11, h: 64 },
+  rotten_broccoli:   { sheet: 'rotten_broccoli', fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 9,  h: 80 },
+  moldy_meatball:    { sheet: 'moldy_meatball',  fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 10, h: 66 },
+  pizza_crab:        { sheet: 'pizza_crab',      fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 10, h: 64 },
+  buffet_dumpster:   { sheet: 'buffet_dumpster', fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 8,  h: 240 },
+
+  dust_bunny:        { sheet: 'dust_bunny',    fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 11, h: 64 },
+  cactus_crumb:      { sheet: 'cactus_crumb',  fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 9,  h: 80 },
+  sandbag_slug:      { sheet: 'sandbag_slug',  fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 10, h: 66 },
+  vacuum_fossil:     { sheet: 'vacuum_fossil', fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 10, h: 64 },
+  baron_dustgut:     { sheet: 'baron_dustgut', fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 8,  h: 240 },
+
+  plunger_parasite:  { sheet: 'plunger_parasite', fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 11, h: 64 },
+  urinal_cake:       { sheet: 'urinal_cake',      fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 9,  h: 80 },
+  hair_clog:         { sheet: 'hair_clog',        fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 10, h: 66 },
+  tp_mummy:          { sheet: 'tp_mummy',         fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 10, h: 64 },
+  grand_flush:       { sheet: 'grand_flush',      fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 8,  h: 240 },
+
+  frozen_pea:        { sheet: 'frozen_pea',       fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 11, h: 64 },
+  tv_dinner:         { sheet: 'tv_dinner',        fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 9,  h: 80 },
+  ice_cream:         { sheet: 'ice_cream',        fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 10, h: 66 },
+  fish_stick:        { sheet: 'fish_stick',       fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 10, h: 64 },
+  freezer_behemoth:  { sheet: 'freezer_behemoth', fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 8,  h: 240 },
+
+  bone_bat:          { sheet: 'bone_bat',       fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 11, h: 64 },
+  tombstone_toad:    { sheet: 'tombstone_toad', fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 9,  h: 80 },
+  worm_rider:        { sheet: 'worm_rider',     fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 10, h: 66 },
+  zombie_hand:       { sheet: 'zombie_hand',    fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 10, h: 64 },
+  meat_necro:        { sheet: 'meat_necro',     fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 8,  h: 240 },
+
+  reality_roach:     { sheet: 'reality_roach',     fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 12, h: 64 },
+  condiment_demon:   { sheet: 'condiment_demon',   fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 9,  h: 80 },
+  void_pickle:       { sheet: 'void_pickle',       fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 10, h: 66 },
+  sock_madness:      { sheet: 'sock_madness',      fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 10, h: 64 },
+  gross_singularity: { sheet: 'gross_singularity', fx: 0, fy: 0, fw: 0.125, fh: 1, n: 8, fps: 8,  h: 240 },
 };
 
 /* Per-key cache of exact frame rectangles. Because the sheets now have
