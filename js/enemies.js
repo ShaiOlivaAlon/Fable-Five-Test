@@ -48,6 +48,7 @@ class Enemy {
     if (this.delay > 0) { this.delay -= dt; return; }
     this.t += dt;
     this.flash = Math.max(0, this.flash - dt);
+    this.hitPop = Math.max(0, (this.hitPop || 0) - dt * 1.3);
 
     if (this.phase === 'entry') {
       const k = Math.min(1, this.t / this.dur);
@@ -61,6 +62,8 @@ class Enemy {
     this.bt += dt;
     const T = this.type;
     if (T === 'drone' || T === 'sentry') {
+      // the formation slowly advances on the player so it never feels static
+      this.slot.y = Math.min(this.slot.y + (10 + (Level.tier || 0) * 2.5) * dt, g.LH * 0.58);
       this.x = U.clamp(this.slot.x + Math.sin(this.bt * 1.3 + this.ph) * this.sway, this.r + 6, g.LW - this.r - 6);
       this.y = this.slot.y + Math.sin(this.bt * 0.8 + this.ph * 2) * 9;
       if (this.spec.fire) {
@@ -126,6 +129,7 @@ class Enemy {
     if (this.dead) return;
     this.hp -= d;
     this.flash = 0.09;
+    this.hitPop = 0.18; // squash-pop reaction
     if (this.hp <= 0) {
       this.dead = true;
       g.killEnemy(this);
@@ -141,6 +145,7 @@ class Enemy {
     // depth cue: things higher up the playfield sit further away
     const ds = 0.86 + 0.24 * U.clamp(this.y / g.LH, 0, 1);
     ctx.scale(ds, ds);
+    if (this.hitPop) ctx.scale(1 + this.hitPop * 0.5, 1 - this.hitPop * 0.35); // squash-pop on hit
     U.dropShadow(ctx, this.r, 4, this.r * 0.75 + 4, 0.34);
     if (this.type === 'diver' && this.diving) {
       ctx.rotate(Math.atan2(this.vy, this.vx) - Math.PI / 2);
@@ -542,14 +547,17 @@ class Boss {
       if (this.beamT <= 0) this.beamState = 0;
     }
 
+    // the boss keeps lobbing out minions that DIVE at the player (not static)
     this.spawnT -= dt;
-    if (this.phase === 2 && this.spawnT <= 0) {
-      this.spawnT = 9;
-      for (const s of [-1, 1]) {
-        g.enemies.push(new Enemy('drone', {
-          from: { x: this.x + s * 80, y: this.y + 10 },
-          slot: { x: U.rand(60, g.LW - 60), y: U.rand(200, 280) },
-          dur: 1.3,
+    if (this.spawnT <= 0) {
+      this.spawnT = this.phase === 2 ? 4.5 : 7;
+      const n = this.phase === 2 ? 2 : 1;
+      for (let i = 0; i < n; i++) {
+        const s = i % 2 ? 1 : -1;
+        g.enemies.push(new Enemy('diver', {
+          from: { x: this.x + s * 70, y: this.y + 24 },
+          slot: { x: U.clamp(this.x + s * 70, 60, g.LW - 60), y: this.y + 70 },
+          dur: 0.8, diveDelay: U.rand(0.2, 0.7),
         }));
       }
     }
