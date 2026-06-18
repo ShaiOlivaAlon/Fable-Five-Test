@@ -4,6 +4,41 @@
    eyeball planets + drifting haze + falling slime drips. */
 const BG = {
   layers: [], fog: [], drips: [], LW: 0, LH: 0,
+  video: null, videoSrc: 'level1_bg.mp4',
+
+  /* Create the level-1 background video once. Muted + inline so mobile browsers
+     allow playback; drawn to the canvas each frame in draw(). Kept off-screen
+     (not display:none — some browsers won't decode hidden video) so it still
+     feeds frames. If the file is missing or can't decode, we silently fall back
+     to the static 'bg' image, then to the procedural layers. */
+  initVideo() {
+    if (this.video) return;
+    const v = document.createElement('video');
+    v.src = this.videoSrc;
+    v.muted = true;
+    v.defaultMuted = true;
+    v.loop = true;
+    v.playsInline = true;
+    v.setAttribute('playsinline', '');
+    v.setAttribute('webkit-playsinline', '');
+    v.preload = 'auto';
+    v.crossOrigin = 'anonymous';
+    v.style.cssText = 'position:fixed;width:2px;height:2px;top:-10px;left:-10px;opacity:0.01;pointer-events:none;z-index:-1;';
+    v.addEventListener('error', () => { this.video = null; }, { once: true });
+    document.body.appendChild(v);
+    this.video = v;
+    v.play().catch(() => { /* needs a user gesture; playVideo() retries on tap */ });
+  },
+
+  playVideo() {
+    if (!this.video) this.initVideo();
+    if (this.video) this.video.play().catch(() => { /* ignore */ });
+  },
+
+  videoReady() {
+    const v = this.video;
+    return !!(v && v.readyState >= 2 && v.videoWidth > 0 && !v.error);
+  },
 
   init(LW, LH, res) {
     this.LW = LW;
@@ -208,44 +243,55 @@ const BG = {
     }
   },
 
+  // Cover-fit a single scene (video frame or painted image), gently drifting,
+  // then darken it and lay slime drips over for motion. The illustration/clip is
+  // one scene, so it must not tile — tiling repeats the ground into the sky.
+  drawScene(ctx, src, iw, ih, drift) {
+    const { LW, LH } = this;
+    const scale = Math.max(LW / iw, LH / ih) * 1.04; // slight overscan for drift room
+    const dw = iw * scale, dh = ih * scale;
+    const dx = (LW - dw) / 2;
+    const slackY = dh - LH;
+    const oy = -slackY * (0.5 + 0.5 * Math.sin(this.bgT * 0.12)) * (drift ? 1 : 0);
+    ctx.imageSmoothingEnabled = true;
+    try { ctx.drawImage(src, dx, oy, dw, dh); } catch (e) { return false; }
+    // darkening veil for sprite contrast
+    ctx.fillStyle = 'rgba(8,4,18,0.5)';
+    ctx.fillRect(-40, -40, LW + 80, LH + 80);
+    // drifting slime drips overlay for motion
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.4;
+    for (const d of this.drips) {
+      ctx.strokeStyle = d.color;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(d.x, d.y);
+      ctx.lineTo(d.x, d.y - d.len);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    return true;
+  },
+
   draw(ctx) {
     const { LW, LH } = this;
     // overdraw so screen-shake never exposes raw canvas edges
     ctx.fillStyle = '#0e0318';
     ctx.fillRect(-40, -40, LW + 80, LH + 80);
 
-    // painted background: cover-fit, gently drifting, darkened so the gameplay
-    // sprites read clearly (the illustration is a single scene, so it must not
-    // tile — tiling repeats the ground into the sky)
-    if (Assets.ok('bg')) {
-      const img = Assets.imgs.bg;
-      const iw = sheetW(img), ih = sheetH(img);
-      const scale = Math.max(LW / iw, LH / ih) * 1.04; // slight overscan for drift room
-      const dw = iw * scale, dh = ih * scale;
-      const dx = (LW - dw) / 2;
-      const slackY = dh - LH;
-      const oy = -slackY * (0.5 + 0.5 * Math.sin(this.bgT * 0.12));
-      ctx.imageSmoothingEnabled = true;
-      ctx.drawImage(img, dx, oy, dw, dh);
-      // darkening veil for sprite contrast
-      ctx.fillStyle = 'rgba(8,4,18,0.5)';
-      ctx.fillRect(-40, -40, LW + 80, LH + 80);
-      // drifting slime drips overlay for motion
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = 0.4;
-      for (const d of this.drips) {
-        ctx.strokeStyle = d.color;
-        ctx.lineWidth = 1.6;
-        ctx.beginPath();
-        ctx.moveTo(d.x, d.y);
-        ctx.lineTo(d.x, d.y - d.len);
-        ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
-      ctx.globalCompositeOperation = 'source-over';
+    // 1) live level-1 video (the clip already moves, so no extra drift)
+    if (this.videoReady() &&
+        this.drawScene(ctx, this.video, this.video.videoWidth, this.video.videoHeight, false)) {
+      return;
+    }
+    // 2) static fallback image (sent separately, loaded as the 'bg' sheet)
+    if (Assets.ok('bg') &&
+        this.drawScene(ctx, Assets.imgs.bg, sheetW(Assets.imgs.bg), sheetH(Assets.imgs.bg), true)) {
       return;
     }
 
+    // 3) procedural psychedelic layers
     for (const L of this.layers) {
       ctx.globalAlpha = L.alpha;
       const y0 = (L.y % L.h) - L.h;

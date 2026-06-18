@@ -5,6 +5,7 @@
   Assets.load(buildCharSelect); // painted sprite sheets if present; procedural fallback otherwise
   Game.init(canvas);
   Input.attach(canvas);
+  BG.initVideo(); // level-1 background clip; tries muted autoplay, retried on first tap
 
   // character / ship select on the title screen
   function drawShipThumb(cv, key) {
@@ -58,8 +59,11 @@
     Sfx.init();
     Sfx.resume();
     Sfx.music.start();
+    BG.playVideo(); // ensure the bg clip is rolling (autoplay may have been blocked)
     Game.start();
   };
+  // any first tap on the title is a valid gesture to kick off muted video too
+  document.addEventListener('pointerdown', () => BG.playVideo(), { once: true });
   for (const id of ['btn-start', 'btn-retry', 'btn-again']) {
     document.getElementById(id).addEventListener('click', begin);
   }
