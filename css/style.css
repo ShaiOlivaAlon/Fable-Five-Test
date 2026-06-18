@@ -171,6 +171,7 @@ h1.green {
   transition: width .3s ease-out;
 }
 #loadmsg { min-height: 16px; animation: hum 1.6s ease-in-out infinite; }
+#loadmsg.tap { color: #d8ffc0; font-weight: 700; letter-spacing: 5px; text-shadow: 0 0 12px #8aff3a; animation: hum 1s ease-in-out infinite; }
 
 .hint { margin-top: 22px; color: rgba(190,230,160,.6); font-size: 12px; letter-spacing: 1px; }
 .best { margin-top: 10px; color: #ffd84d; font-size: 12px; letter-spacing: 2px; text-shadow: 0 0 8px rgba(255,216,77,.7); }

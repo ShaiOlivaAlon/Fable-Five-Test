@@ -456,7 +456,7 @@ const Game = {
     this.state = 'clear';
     BG.leveling = false;
     Sfx.jingle();
-    Sfx.music.play('theme');
+    Sfx.music.play('gameover'); // "game over" track plays whenever the run ends — win or lose
     this.saveBest();
     this.els['clear-sub'].textContent = U.pick(TROLL.clear);
     this.els['clear-score'].textContent = this.score.toLocaleString();

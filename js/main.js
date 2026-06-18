@@ -37,24 +37,33 @@
     const pct = Math.round((assetsFrac * 0.6 + videoFrac * 0.4) * 100);
     loadfill.style.width = Math.max(6, Math.min(100, pct)) + '%';
   };
-  const reveal = () => {
-    if (revealed) return;
-    revealed = true;
+  let loadReady = false;
+  const markReady = () => {
+    if (loadReady || revealed) return;
+    loadReady = true;
     clearInterval(msgTimer);
     loadfill.style.width = '100%';
-    loadmsg.textContent = 'ready. ish.';
-    setTimeout(() => {
-      loadingEl.classList.add('hidden');
-      titleEl.classList.remove('hidden');
-    }, 340);
+    loadmsg.textContent = '▶ TAP TO ENTER';
+    loadmsg.classList.add('tap');
   };
-  const maybeReveal = () => {
+  const enter = () => {
+    if (revealed) return;
+    revealed = true;
+    // this tap is a guaranteed user gesture: unlock audio so the menu theme plays
+    Sfx.init();
+    Sfx.resume();
+    Sfx.music.play('theme');
+    BG.playVideo();
+    loadingEl.classList.add('hidden');
+    titleEl.classList.remove('hidden');
+  };
+  const maybeReady = () => {
     setFill();
-    if (assetsReady && mediaReady && performance.now() - startT >= MIN_MS) reveal();
+    if (assetsReady && mediaReady && performance.now() - startT >= MIN_MS) markReady();
   };
 
   Assets.load(
-    () => { buildCharSelect(); assetsReady = true; assetsFrac = 1; maybeReveal(); },
+    () => { buildCharSelect(); assetsReady = true; assetsFrac = 1; maybeReady(); },
     (loaded, total) => { assetsFrac = total ? loaded / total : 1; setFill(); },
   );
 
@@ -71,19 +80,22 @@
   };
   if (vid && !vid.error) {
     if (vid.readyState >= 2) { mediaReady = true; videoFrac = Math.max(videoFrac, 0.6); }
-    vid.addEventListener('loadeddata', () => { mediaReady = true; videoFrac = Math.max(videoFrac, 0.6); maybeReveal(); }, { once: true });
+    vid.addEventListener('loadeddata', () => { mediaReady = true; videoFrac = Math.max(videoFrac, 0.6); maybeReady(); }, { once: true });
     vid.addEventListener('progress', readVideoBuffer);
     vid.addEventListener('canplaythrough', () => { videoFrac = 1; setFill(); }, { once: true });
-    vid.addEventListener('error', () => { mediaReady = true; videoFrac = 1; maybeReveal(); }, { once: true });
+    vid.addEventListener('error', () => { mediaReady = true; videoFrac = 1; maybeReady(); }, { once: true });
   } else {
     mediaReady = true; videoFrac = 1;
   }
   // re-check once the minimum display time elapses (covers the all-cached case)
-  setTimeout(maybeReveal, MIN_MS + 40);
+  setTimeout(maybeReady, MIN_MS + 40);
   // never let the heavy video block play — the static fallback covers a slow net
-  setTimeout(() => { mediaReady = true; videoFrac = Math.max(videoFrac, 1); maybeReveal(); }, 8000);
+  setTimeout(() => { mediaReady = true; videoFrac = Math.max(videoFrac, 1); maybeReady(); }, 8000);
   setFill();
-  maybeReveal();
+  maybeReady();
+
+  // tap the loading screen once it's ready → unlocks audio and shows the menu
+  loadingEl.addEventListener('pointerdown', () => { if (loadReady) enter(); });
 
   // character / ship select on the title screen
   function drawShipThumb(cv, key) {
@@ -141,13 +153,6 @@
     BG.playVideo(); // ensure the bg clip is rolling (autoplay may have been blocked)
     Game.start();
   };
-  // first tap anywhere is a valid gesture: unlock audio + kick off menu theme + video
-  document.addEventListener('pointerdown', () => {
-    Sfx.init();
-    Sfx.resume();
-    Sfx.music.play('theme');
-    BG.playVideo();
-  }, { once: true });
   for (const id of ['btn-start', 'btn-retry', 'btn-again']) {
     document.getElementById(id).addEventListener('click', begin);
   }
