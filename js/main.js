@@ -197,6 +197,80 @@
     if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') { e.preventDefault(); Game.togglePause(); }
   });
 
+  // ---- sound mix (persisted) + developer menu (press D) ----
+  const Mix = { sfx: 1.7, music: 0.45, amb: 0.4 };
+  try { const s = JSON.parse(localStorage.getItem('sg_mix') || 'null'); if (s) Object.assign(Mix, s); } catch (e) { /* ignore */ }
+  const applyMix = () => {
+    Sfx.sfxLevel = Mix.sfx;
+    if (Sfx.sfxGain) Sfx.sfxGain.gain.value = Mix.sfx;
+    Sfx.music.vol = Mix.music;
+    const cur = Sfx.music.els && Sfx.music.els[Sfx.music.cur];
+    if (cur && !Sfx.muted) cur.volume = Mix.music;
+    BG.videoVol = Mix.amb;
+    if (BG.video && !Sfx.muted) BG.video.volume = Mix.amb;
+  };
+  applyMix();
+
+  const devEl = document.createElement('div');
+  devEl.id = 'screen-dev'; devEl.className = 'hidden';
+  devEl.innerHTML =
+    '<div class="devpanel"><div class="devtitle">▒ DEV MENU ▒</div>' +
+    '<div class="devrow"><span>WORLD</span><div id="devworlds"></div></div>' +
+    '<div class="devrow"><span>WAVE</span><div id="devwaves"></div></div>' +
+    '<button id="devjump" class="neon-btn small">JUMP TO IT</button>' +
+    '<div class="devmix">' +
+    '<label><span class="k">SFX</span><input type="range" id="mixsfx" min="0" max="3" step="0.05"><span class="v" id="vsfx"></span></label>' +
+    '<label><span class="k">MUSIC</span><input type="range" id="mixmusic" min="0" max="1" step="0.02"><span class="v" id="vmusic"></span></label>' +
+    '<label><span class="k">AMBIENCE</span><input type="range" id="mixamb" min="0" max="1" step="0.02"><span class="v" id="vamb"></span></label>' +
+    '</div><div class="devrow2"><button id="devsave" class="neon-btn small">SAVE MIX</button>' +
+    '<button id="devclose" class="neon-btn small">CLOSE</button></div></div>';
+  document.getElementById('wrap').appendChild(devEl);
+
+  let selWorld = 0, selWave = 1;
+  const worldsBox = devEl.querySelector('#devworlds');
+  const wavesBox = devEl.querySelector('#devwaves');
+  const refreshChips = () => {
+    worldsBox.querySelectorAll('.devchip').forEach((c, i) => c.classList.toggle('on', i === selWorld));
+    wavesBox.querySelectorAll('.devchip').forEach((c) => c.classList.toggle('on', +c.dataset.w === selWave));
+  };
+  WORLDS.forEach((w, i) => {
+    const b = document.createElement('button');
+    b.className = 'devchip'; b.textContent = i + 1; b.title = w.name;
+    b.onclick = () => { selWorld = i; refreshChips(); };
+    worldsBox.appendChild(b);
+  });
+  for (let wv = 1; wv <= 6; wv++) {
+    const b = document.createElement('button');
+    b.className = 'devchip'; b.dataset.w = wv; b.textContent = wv;
+    b.onclick = () => { selWave = wv; refreshChips(); };
+    wavesBox.appendChild(b);
+  }
+  { const b = document.createElement('button'); b.className = 'devchip'; b.dataset.w = -1; b.textContent = 'BOSS'; b.onclick = () => { selWave = -1; refreshChips(); }; wavesBox.appendChild(b); }
+  refreshChips();
+
+  const sl = { sfx: devEl.querySelector('#mixsfx'), music: devEl.querySelector('#mixmusic'), amb: devEl.querySelector('#mixamb') };
+  const vl = { sfx: devEl.querySelector('#vsfx'), music: devEl.querySelector('#vmusic'), amb: devEl.querySelector('#vamb') };
+  const syncSliders = () => {
+    sl.sfx.value = Mix.sfx; sl.music.value = Mix.music; sl.amb.value = Mix.amb;
+    vl.sfx.textContent = (+Mix.sfx).toFixed(2); vl.music.textContent = (+Mix.music).toFixed(2); vl.amb.textContent = (+Mix.amb).toFixed(2);
+  };
+  syncSliders();
+  sl.sfx.oninput = () => { Mix.sfx = +sl.sfx.value; applyMix(); vl.sfx.textContent = Mix.sfx.toFixed(2); };
+  sl.music.oninput = () => { Mix.music = +sl.music.value; applyMix(); vl.music.textContent = Mix.music.toFixed(2); };
+  sl.amb.oninput = () => { Mix.amb = +sl.amb.value; applyMix(); vl.amb.textContent = Mix.amb.toFixed(2); };
+
+  const openDev = (open) => { devEl.classList.toggle('hidden', !open); if (open && Game.state === 'playing') Game.togglePause(true); };
+  devEl.querySelector('#devjump').onclick = () => { openDev(false); Game.devJump(selWorld, selWave); };
+  devEl.querySelector('#devclose').onclick = () => openDev(false);
+  devEl.querySelector('#devsave').onclick = () => {
+    try { localStorage.setItem('sg_mix', JSON.stringify(Mix)); } catch (e) { /* ignore */ }
+    const b = devEl.querySelector('#devsave'); b.textContent = 'SAVED ✓';
+    setTimeout(() => { b.textContent = 'SAVE MIX'; }, 900);
+  };
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'd' || e.key === 'D') { e.preventDefault(); openDev(devEl.classList.contains('hidden')); }
+  });
+
   let last = performance.now();
   function frame(now) {
     requestAnimationFrame(frame);

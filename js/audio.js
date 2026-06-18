@@ -3,7 +3,7 @@
 /* All audio is synthesized live with the Web Audio API — no asset files. */
 const Sfx = {
   ctx: null, master: null, sfxGain: null, comp: null, noiseBuf: null,
-  muted: false, baseVol: 0.9,
+  muted: false, baseVol: 0.9, sfxLevel: 1.7,
 
   init() {
     if (this.ctx) return;
@@ -23,7 +23,7 @@ const Sfx = {
     this.master.connect(ctx.destination);
     // SFX bus, boosted — the synthesized blips were far quieter than the music
     this.sfxGain = ctx.createGain();
-    this.sfxGain.gain.value = 1.7;
+    this.sfxGain.gain.value = this.sfxLevel;
     this.sfxGain.connect(this.comp);
     const len = ctx.sampleRate | 0;
     this.noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate);

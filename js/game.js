@@ -210,6 +210,23 @@ const Game = {
     this.els['btn-pause'].classList.remove('hidden');
   },
 
+  // dev: jump straight to a world + wave (wave -1 = go to the boss)
+  devJump(world, wave) {
+    Sfx.init(); Sfx.resume();
+    if (this.state !== 'playing') this.start();
+    this.enemies.length = 0; this.pbullets.length = 0; this.ebullets.length = 0;
+    this.powerups.length = 0; this.splats.length = 0; this.boss = null;
+    this.els.bossbar.classList.add('hidden');
+    Level.loadWorld(this, U.clamp(world, 0, WORLDS.length - 1));
+    if (wave < 0) { Level.waveIdx = Level.waves.length; Level.bossSpawned = false; }
+    else { Level.waveIdx = U.clamp(wave, 0, Level.waves.length) - 1; }
+    Level.queue = []; Level.betweenT = 0.15; Level.done = false;
+    BG.travel = 0; BG.leveling = true;
+    this.paused = false;
+    this.els['screen-pause'].classList.add('hidden');
+    this.els['btn-pause'].classList.remove('hidden');
+  },
+
   togglePause(force) {
     const want = force !== undefined ? force : !this.paused;
     if (want === this.paused) return;
