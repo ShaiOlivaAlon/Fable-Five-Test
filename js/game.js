@@ -608,8 +608,21 @@ const Game = {
       BG.leveling = true;
     } else {
       const w = WORLDS[Level.worldIdx];
-      if (w && w.ending) BG.setVideo(w.ending); // abyss ending scene behind the victory screen
-      this.levelClear();
+      if (w && w.ending && BG.video) {
+        // play the ending scene IN FULL (top-cropped, continuing the BG) before
+        // the scoreboard appears
+        this.state = 'ending';
+        BG.leveling = false;
+        this.enemies.length = 0; this.ebullets.length = 0; this.pbullets.length = 0;
+        this.powerups.length = 0; this.plasmas.length = 0; this.boss = null;
+        this.els.hud.classList.add('hidden');
+        this.els['btn-pause'].classList.add('hidden');
+        this.els['btn-charge'].classList.add('hidden');
+        this.els.bossbar.classList.add('hidden');
+        BG.playEnding(w.ending, () => this.levelClear());
+      } else {
+        this.levelClear();
+      }
     }
   },
 
@@ -641,7 +654,7 @@ const Game = {
   },
 
   levelClear() {
-    if (this.state !== 'playing') return;
+    if (this.state !== 'playing' && this.state !== 'ending') return;
     this.state = 'clear';
     BG.leveling = false;
     Sfx.jingle();

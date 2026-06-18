@@ -8,6 +8,7 @@ const BG = {
   fallbackImg: null, _fallbackSrc: null,
   snapCv: null, snapN: 0, // last good video frame, shown during source swaps to avoid a black flash
   travel: 0, leveling: false, // 0=bottom of the scene shown, 1=top; pans up as the level progresses
+  endingMode: false, _endTimer: 0, // plays the ending clip once (no loop), cropped to the top
 
   // keep the video's audio in sync with the global mute (called from Sfx.setMuted)
   applyMute() { if (this.video) this.video.muted = Sfx.muted; },
@@ -33,6 +34,7 @@ const BG = {
     // so neither is ever drawn — far smoother than native loop alone.
     v.addEventListener('loadedmetadata', () => { this.vdur = v.duration || 0; });
     v.addEventListener('timeupdate', () => {
+      if (this.endingMode) return; // the ending clip must run to its end, not loop
       const d = this.vdur || v.duration || 0;
       if (d && v.currentTime >= d - 0.33) { try { v.currentTime = 0.06; } catch (e) { /* not seekable */ } }
     });
@@ -47,6 +49,9 @@ const BG = {
   setWorld(world) {
     if (!world) return;
     if (!this.video) this.initVideo(world.video || null);
+    this.endingMode = false;
+    if (this._endTimer) { clearTimeout(this._endTimer); this._endTimer = 0; }
+    if (this.video) this.video.loop = true;
     this.travel = 0;
     // static fallback image (own loader — full scene, not a keyed sprite sheet)
     if (world.fallback && world.fallback !== this._fallbackSrc) {
@@ -89,6 +94,36 @@ const BG = {
     this.video.volume = this.videoVol;
     this.video.muted = Sfx.muted;
     this.video.play().catch(() => { /* ignore */ });
+  },
+
+  /* Play the ending clip ONCE, top-cropped (continuing the level BG), then call
+     onEnd. Disables looping/loop-trim so the clip runs to completion. */
+  playEnding(src, onEnd) {
+    const v = this.video;
+    if (!v || !src) { if (onEnd) onEnd(); return; }
+    this.endingMode = true;
+    this.travel = 1; // show the upper part, continuing from the level's end
+    v.loop = false;
+    this._videoSrc = src;
+    this.vdur = 0;
+    try { v.src = src; v.load(); } catch (e) { /* ignore */ }
+    v.volume = this.videoVol;
+    v.muted = Sfx.muted;
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      if (this._endTimer) { clearTimeout(this._endTimer); this._endTimer = 0; }
+      if (onEnd) onEnd();
+    };
+    v.addEventListener('ended', finish, { once: true });
+    v.addEventListener('error', finish, { once: true });
+    v.addEventListener('loadedmetadata', () => {
+      if (this._endTimer) clearTimeout(this._endTimer);
+      this._endTimer = setTimeout(finish, ((v.duration || 18) + 2) * 1000); // safety cap
+    }, { once: true });
+    this._endTimer = setTimeout(finish, 30000); // hard cap if metadata never loads
+    v.play().catch(() => { /* gesture already happened by end-game */ });
   },
 
   playVideo() {
@@ -359,6 +394,7 @@ const BG = {
   // vertical scroll position of the background: pans bottom→top with the level,
   // idles near the bottom with a slow drift on menus/screens
   verticalFraction() {
+    if (this.endingMode) return 1; // ending clip: keep the upper crop, like the level's end
     if (this.leveling) return U.clamp(this.travel, 0, 1);
     return 0.10 + 0.06 * (0.5 + 0.5 * Math.sin(this.bgT * 0.12));
   },
