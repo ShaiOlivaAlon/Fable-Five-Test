@@ -461,27 +461,45 @@ function drawEnemyShape(ctx, e, t, flash) {
   ctx.shadowBlur = 0;
 }
 
+/* Per-world boss personalities: glow colour, HP scale, the ordered set of
+   special attack patterns it cycles through, how aggressively it spawns diving
+   minions, and whether it uses the sweeping beam. */
+const BOSS_CFG = [
+  { glow: '#ff7ad1', hp: 1.00, beam: false, spawn: 0, patterns: ['ring', 'aimed3'] },               // 1 candy
+  { glow: '#9bd84a', hp: 1.05, beam: false, spawn: 2, patterns: ['aimed5', 'lob', 'spawn'] },        // 2 trash
+  { glow: '#e0b257', hp: 1.10, beam: false, spawn: 1, patterns: ['sweep', 'fan', 'sweep'] },          // 3 desert
+  { glow: '#9ee36b', hp: 1.12, beam: true,  spawn: 0, patterns: ['spiral', 'aimed3', 'beam'] },        // 4 toilet
+  { glow: '#8fe6ff', hp: 1.20, beam: true,  spawn: 0, patterns: ['ice', 'fan', 'beam'] },              // 5 freezer
+  { glow: '#b6ff5a', hp: 1.22, beam: true,  spawn: 2, patterns: ['aimed5', 'spawn', 'spiral', 'beam'] }, // 6 graveyard
+  { glow: '#c479ff', hp: 1.35, beam: true,  spawn: 1, patterns: ['spiral', 'ring', 'sweep', 'fan', 'beam'] }, // 7 abyss
+];
+
 class Boss {
   constructor(g) {
     this.g = g;
     const tier = Level.tier || 0;
-    this.maxHp = Math.round(1500 * (1 + tier * 0.32)); // each world's boss is tankier
+    this.world = Level.worldIdx || 0;
+    this.cfg = BOSS_CFG[this.world] || BOSS_CFG[0];
+    this.maxHp = Math.round(1500 * (1 + tier * 0.3) * this.cfg.hp);
     this.hp = this.maxHp;
     this.x = g.LW / 2;
     this.y = -140;
     this.t = 0;
     this.state = 'enter';
     this.flash = 0;
-    this.atkT = 2.2;
+    this.atkT = 2.0;
     this.beamT = 0;
     this.beamX = 0;
     this.beamState = 0; // 0 idle, 1 telegraph, 2 firing
-    this.spawnT = 6;
+    this.spawnT = 5;
     this.dying = 0;
     this.dead = false;
     this.dir = 1;
     this.tellT = 0; // >0 while attacking → show the attack frame
     this.hitT = 0;  // throttle for the hurt sound
+    this.spiralA = 0; // running angle for spiral patterns
+    this.patI = 0;    // which pattern in cfg.patterns comes next
+    this.auraP = 0;   // pulse phase for the glow aura
   }
 
   get phase() { return this.hp > this.maxHp * 0.55 ? 1 : 2; }
@@ -522,12 +540,22 @@ class Boss {
       return;
     }
 
-    // fight
-    const speed = this.phase === 2 ? 110 : 70;
+    // fight — drift side to side
+    this.hitPop = Math.max(0, (this.hitPop || 0) - dt * 2.5);
+    const speed = this.phase === 2 ? 122 : 80;
     if (this.beamState !== 2) {
       this.x += this.dir * speed * dt;
-      if (this.x > g.LW - 125) { this.x = g.LW - 125; this.dir = -1; }
-      if (this.x < 125) { this.x = 125; this.dir = 1; }
+      if (this.x > g.LW - 120) { this.x = g.LW - 120; this.dir = -1; }
+      if (this.x < 120) { this.x = 120; this.dir = 1; }
+    }
+
+    // ambient aura particles so the boss feels alive/powerful
+    if (Math.random() < dt * 16) {
+      Particles.spawn({
+        x: this.x + U.rand(-72, 72), y: this.y + U.rand(-44, 44),
+        vx: U.rand(-12, 12), vy: U.rand(-34, -8), color: this.cfg.glow,
+        size: U.rand(2, 4.5), life: U.rand(0.4, 0.9), glow: 10, drag: 1,
+      });
     }
 
     this.atkT -= dt;
@@ -535,69 +563,71 @@ class Boss {
 
     if (this.beamState === 1) {
       this.beamT -= dt;
-      if (this.beamT <= 0) {
-        this.beamState = 2;
-        this.beamT = 0.8;
-        Sfx.beamBlast();
-        g.shake(5);
-      }
+      if (this.beamT <= 0) { this.beamState = 2; this.beamT = 0.85; Sfx.beamBlast(); g.shake(6); }
     } else if (this.beamState === 2) {
       this.beamT -= dt;
       this.beamX = U.lerp(this.beamX, this.x, Math.min(1, dt * 2));
       if (this.beamT <= 0) this.beamState = 0;
     }
 
-    // the boss keeps lobbing out minions that DIVE at the player (not static)
+    // steady diver minions (aggressiveness from the boss config)
     this.spawnT -= dt;
     if (this.spawnT <= 0) {
-      this.spawnT = this.phase === 2 ? 4.5 : 7;
-      const n = this.phase === 2 ? 2 : 1;
-      for (let i = 0; i < n; i++) {
-        const s = i % 2 ? 1 : -1;
-        g.enemies.push(new Enemy('diver', {
-          from: { x: this.x + s * 70, y: this.y + 24 },
-          slot: { x: U.clamp(this.x + s * 70, 60, g.LW - 60), y: this.y + 70 },
-          dur: 0.8, diveDelay: U.rand(0.2, 0.7),
-        }));
-      }
+      this.spawnT = (this.phase === 2 ? 5 : 8) - this.cfg.spawn;
+      this.spawnDivers(1 + this.cfg.spawn);
+    }
+  }
+
+  spawnDivers(n) {
+    const g = this.g;
+    for (let i = 0; i < n; i++) {
+      const s = i % 2 ? 1 : -1;
+      g.enemies.push(new Enemy('diver', {
+        from: { x: this.x + s * 60, y: this.y + 24 },
+        slot: { x: U.clamp(this.x + s * (40 + i * 28), 60, g.LW - 60), y: this.y + 70 },
+        dur: 0.8, diveDelay: U.rand(0.15, 0.6),
+      }));
     }
   }
 
   attack() {
-    const g = this.g, p = this.phase;
-    const roll = Math.random();
+    const p = this.phase;
     this.tellT = 0.5; // show the attack/charge frame briefly
-    this.atkT = p === 2 ? U.rand(1.4, 2.2) : U.rand(1.9, 2.6);
-    if (p === 2 && this.beamState === 0 && roll < 0.3) {
-      this.beamState = 1;
-      this.beamT = 0.9;
-      this.beamX = this.x;
-      Sfx.warnTone();
-      return;
-    }
-    if (roll < 0.55) {
-      const a = U.angTo(this.x, this.y + 30, g.player.x, g.player.y);
-      for (let i = 0; i < 3; i++) {
-        g.ebullets.push({
-          x: this.x, y: this.y + 36,
-          vx: Math.cos(a + (i - 1) * 0.09) * 290,
-          vy: Math.sin(a + (i - 1) * 0.09) * 290,
-          r: 6, type: 'orb', dead: false,
-        });
+    this.atkT = p === 2 ? U.rand(1.0, 1.7) : U.rand(1.5, 2.2); // faster in phase 2
+    const pats = this.cfg.patterns;
+    let pat = pats[this.patI % pats.length];
+    this.patI++;
+    if (pat === 'beam') {
+      if (p === 2 && this.cfg.beam && this.beamState === 0) {
+        this.beamState = 1; this.beamT = 1.0; this.beamX = this.x; Sfx.warnTone(); return;
       }
-      Sfx.enemyShoot();
-    } else {
-      const n = p === 2 ? 13 : 9;
+      pat = 'fan'; // beam not ready yet → fall back to a spread
+    }
+    this.firePattern(pat, p);
+  }
+
+  // distinct bullet patterns; each boss cycles its own subset (see BOSS_CFG)
+  firePattern(pat, p) {
+    const g = this.g, sp = (Level.spdMul || 1);
+    const bx = this.x, by = this.y + 30;
+    const shoot = (ang, speed, r, type) => g.ebullets.push({ x: bx, y: by, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, r: r || 5, type: type || 'orb', dead: false });
+    const toP = U.angTo(bx, by, g.player.x, g.player.y);
+    if (pat === 'aimed3') { for (let i = 0; i < 3; i++) shoot(toP + (i - 1) * 0.10, 300 * sp, 6, 'orb'); Sfx.enemyShoot(); }
+    else if (pat === 'aimed5') { for (let i = 0; i < 5; i++) shoot(toP + (i - 2) * 0.12, 295 * sp, 6, 'orb'); Sfx.enemyShoot(); }
+    else if (pat === 'fan') { const n = p === 2 ? 15 : 11; for (let i = 0; i < n; i++) shoot(Math.PI / 2 + (i - (n - 1) / 2) * 0.19, 215 * sp, 5, 'orb2'); Sfx.enemyShoot(); }
+    else if (pat === 'ring') { const n = p === 2 ? 22 : 16; for (let i = 0; i < n; i++) shoot((i / n) * U.TAU, 185 * sp, 5, 'orb'); Sfx.boom(0.45); }
+    else if (pat === 'spiral') { for (let k = 0; k < 3; k++) { this.spiralA += 0.55; for (let arm = 0; arm < 3; arm++) shoot(this.spiralA + arm * (U.TAU / 3), 235 * sp, 5, 'orb'); } Sfx.enemyShoot(); }
+    else if (pat === 'ice') { for (let i = 0; i < 4; i++) shoot(toP + (i - 1.5) * 0.16, 155 * sp, 9, 'orb2'); Sfx.boom(0.45); }
+    else if (pat === 'lob') { for (let i = 0; i < 6; i++) shoot(Math.PI / 2 + (i - 2.5) * 0.17, 165 * sp, 6, 'orb'); Sfx.enemyShoot(); }
+    else if (pat === 'spawn') { this.spawnDivers(3); Sfx.whoosh(); }
+    else if (pat === 'sweep') {
+      const n = 13, gap = 1 + ((Math.random() * (n - 3)) | 0);
       for (let i = 0; i < n; i++) {
-        const a = Math.PI / 2 + (i - (n - 1) / 2) * 0.22;
-        g.ebullets.push({
-          x: this.x, y: this.y + 30,
-          vx: Math.cos(a) * 200, vy: Math.sin(a) * 200,
-          r: 5, type: 'orb2', dead: false,
-        });
+        if (i === gap || i === gap + 1) continue; // a dodge gap
+        g.ebullets.push({ x: 40 + i * (g.LW - 80) / (n - 1), y: this.y, vx: 0, vy: 205 * sp, r: 5, type: 'orb2', dead: false });
       }
       Sfx.enemyShoot();
-    }
+    } else { for (let i = 0; i < 3; i++) shoot(toP + (i - 1) * 0.1, 290 * sp, 6, 'orb'); Sfx.enemyShoot(); }
   }
 
   hitTest(x, y, r) {
@@ -612,8 +642,9 @@ class Boss {
   damage(d, g) {
     if (this.state !== 'fight') return;
     this.hp -= d;
-    this.flash = 0.12; // visible hurt flash
-    if (this.hitT <= 0) { Sfx.hit(); this.hitT = 0.07; } // throttled hurt sound
+    this.flash = 0.16; // visible hurt flash
+    this.hitPop = 0.12; // squash-pop reaction
+    if (this.hitT <= 0) { Sfx.hit(); this.hitT = 0.06; } // throttled hurt sound
     if (this.hp <= 0) {
       this.hp = 0;
       this.state = 'dying';
@@ -639,13 +670,38 @@ class Boss {
     // is the attack/charge tell, shown only while actually attacking or dying
     const bKey = WORLDS[Level.worldIdx] && WORLDS[Level.worldIdx].bossSprite;
     if (bKey && SPR.ok(bKey)) {
+      // pulsing glow aura behind the boss
+      const aura = 0.5 + 0.5 * Math.sin(t * 3);
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = 0.22 + 0.16 * aura;
+      const ag = ctx.createRadialGradient(0, 0, 20, 0, 0, 165);
+      ag.addColorStop(0, this.cfg.glow);
+      ag.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = ag;
+      ctx.beginPath(); ctx.arc(0, 4, 165, 0, U.TAU); ctx.fill();
+      ctx.restore();
+
+      if (this.hitPop) ctx.scale(1 + this.hitPop * 0.35, 1 - this.hitPop * 0.22); // hit pop
       const n = (FRAMES[bKey] && FRAMES[bKey].n) || 8;
       let bi;
       if (this.state === 'dying') bi = n - 1;
       else if (this.beamState > 0 || this.tellT > 0) bi = n - 1;
-      else bi = Math.floor(t * 5) % Math.max(1, n - 1);
+      else bi = Math.floor(t * 6) % Math.max(1, n - 1);
       SPR.frameAt(ctx, bKey, bi);
-      if (this.flash > 0) SPR.flash(ctx, bKey);
+
+      if (this.flash > 0) { // bright white→red hurt flash over the boss
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = Math.min(0.85, this.flash * 5);
+        const fg = ctx.createRadialGradient(0, 0, 8, 0, 0, 130);
+        fg.addColorStop(0, 'rgba(255,255,255,0.95)');
+        fg.addColorStop(0.5, 'rgba(255,120,120,0.5)');
+        fg.addColorStop(1, 'rgba(255,80,80,0)');
+        ctx.fillStyle = fg;
+        ctx.beginPath(); ctx.arc(0, 0, 130, 0, U.TAU); ctx.fill();
+        ctx.restore();
+      }
       ctx.restore();
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
