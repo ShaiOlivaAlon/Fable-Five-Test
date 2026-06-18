@@ -53,7 +53,7 @@ class Player {
     this.x += (d.x / g.scale) * 1.18 + k.x * spd * dt;
     this.y += (d.y / g.scale) * 1.18 + k.y * spd * dt;
     this.x = U.clamp(this.x, 24, g.LW - 24);
-    this.y = U.clamp(this.y, g.LH * 0.4, g.LH - 46);
+    this.y = U.clamp(this.y, 44, g.LH - 46); // full vertical range — only the screen edges block
     const vx = (this.x - px) / Math.max(dt, 0.001);
     this.tilt = U.lerp(this.tilt, U.clamp(vx / 480, -1, 1), Math.min(1, dt * 10));
 

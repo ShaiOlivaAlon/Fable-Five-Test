@@ -19,6 +19,12 @@ class Enemy {
     this.delay = o.delay || 0;
     this.from = o.from || { x: U.rand(40, 380), y: -40 };
     this.slot = o.slot || { x: this.from.x, y: 120 };
+    // keep the resting position on-screen at ANY resolution so every enemy is
+    // reachable — otherwise a wave can never clear and the level soft-locks
+    const _LW = (typeof Game !== 'undefined' && Game.LW) || 420;
+    const _LH = (typeof Game !== 'undefined' && Game.LH) || 800;
+    this.slot.x = U.clamp(this.slot.x, this.r + 12, _LW - this.r - 12);
+    this.slot.y = U.clamp(this.slot.y, this.r + 24, _LH * 0.6);
     this.dur = o.dur || 1.5;
     this.c1 = o.c1 || { x: this.from.x, y: (this.from.y + this.slot.y) / 2 + 80 };
     this.c2 = o.c2 || { x: this.slot.x + (this.from.x < this.slot.x ? -110 : 110), y: this.slot.y - 70 };
@@ -55,7 +61,7 @@ class Enemy {
     this.bt += dt;
     const T = this.type;
     if (T === 'drone' || T === 'sentry') {
-      this.x = this.slot.x + Math.sin(this.bt * 1.3 + this.ph) * this.sway;
+      this.x = U.clamp(this.slot.x + Math.sin(this.bt * 1.3 + this.ph) * this.sway, this.r + 6, g.LW - this.r - 6);
       this.y = this.slot.y + Math.sin(this.bt * 0.8 + this.ph * 2) * 9;
       if (this.spec.fire) {
         this.fireT -= dt;
@@ -72,7 +78,7 @@ class Enemy {
       if (this.y > g.LH + 40) this.dead = true;
     } else if (T === 'diver') {
       if (this.bt < this.diveDelay) {
-        this.x = this.slot.x + Math.sin(this.bt * 2 + this.ph) * 12;
+        this.x = U.clamp(this.slot.x + Math.sin(this.bt * 2 + this.ph) * 12, this.r + 6, g.LW - this.r - 6);
         this.y = this.slot.y;
       } else {
         if (!this.diving) {
