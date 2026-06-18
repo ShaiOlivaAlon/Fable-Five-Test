@@ -4,9 +4,12 @@
    eyeball planets + drifting haze + falling slime drips. */
 const BG = {
   layers: [], fog: [], drips: [], LW: 0, LH: 0,
-  video: null, vdur: 0, _videoSrc: null,
+  video: null, vdur: 0, _videoSrc: null, videoVol: 0.4, // each level's atmospheric ambience, under the music
   fallbackImg: null, _fallbackSrc: null,
   travel: 0, leveling: false, // 0=bottom of the scene shown, 1=top; pans up as the level progresses
+
+  // keep the video's audio in sync with the global mute (called from Sfx.setMuted)
+  applyMute() { if (this.video) this.video.muted = Sfx.muted; },
 
   /* Create the background <video> once. Muted + inline so mobile browsers allow
      playback; drawn to the canvas each frame in draw(). Kept off-screen (not
@@ -64,6 +67,8 @@ const BG = {
         this.video.src = world.video;
         this.video.load();
       }
+      this.video.volume = this.videoVol;
+      this.video.muted = Sfx.muted; // unmuted once we're past the first gesture
       this.video.play().catch(() => { /* retried on next tap */ });
     } else {
       this._videoSrc = null;
@@ -72,7 +77,11 @@ const BG = {
   },
 
   playVideo() {
-    if (this.video && this._videoSrc) this.video.play().catch(() => { /* ignore */ });
+    if (this.video && this._videoSrc) {
+      this.video.volume = this.videoVol;
+      this.video.muted = Sfx.muted; // this call is gesture-driven, so ambience can be heard
+      this.video.play().catch(() => { /* ignore */ });
+    }
   },
 
   videoReady() {

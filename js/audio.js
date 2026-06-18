@@ -2,8 +2,8 @@
 
 /* All audio is synthesized live with the Web Audio API — no asset files. */
 const Sfx = {
-  ctx: null, master: null, sfxGain: null, musGain: null, noiseBuf: null,
-  muted: false, baseVol: 0.6,
+  ctx: null, master: null, sfxGain: null, comp: null, noiseBuf: null,
+  muted: false, baseVol: 0.9,
 
   init() {
     if (this.ctx) return;
@@ -12,12 +12,19 @@ const Sfx = {
     const ctx = (this.ctx = new AC());
     this.master = ctx.createGain();
     this.master.gain.value = this.muted ? 0 : this.baseVol;
+    // gentle limiter so the punched-up SFX glue together and never clip
+    this.comp = ctx.createDynamicsCompressor();
+    this.comp.threshold.value = -14;
+    this.comp.knee.value = 20;
+    this.comp.ratio.value = 4;
+    this.comp.attack.value = 0.003;
+    this.comp.release.value = 0.25;
+    this.comp.connect(this.master);
     this.master.connect(ctx.destination);
+    // SFX bus, boosted — the synthesized blips were far quieter than the music
     this.sfxGain = ctx.createGain();
-    this.sfxGain.connect(this.master);
-    this.musGain = ctx.createGain();
-    this.musGain.gain.value = 0.55;
-    this.musGain.connect(this.master);
+    this.sfxGain.gain.value = 1.7;
+    this.sfxGain.connect(this.comp);
     const len = ctx.sampleRate | 0;
     this.noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate);
     const d = this.noiseBuf.getChannelData(0);
@@ -36,6 +43,7 @@ const Sfx = {
     this.muted = !!m;
     if (this.master) this.master.gain.value = this.muted ? 0 : this.baseVol;
     this.music.applyMute();
+    if (typeof BG !== 'undefined' && BG.applyMute) BG.applyMute(); // video ambience too
     try { localStorage.setItem('sg_muted', this.muted ? '1' : '0'); } catch (e) { /* private */ }
     return this.muted;
   },
@@ -137,7 +145,7 @@ const Sfx = {
         const a = new Audio();
         a.loop = true;        // loops if the track ends before the level does
         a.preload = 'auto';
-        a.volume = 0.6;
+        a.volume = 0.45;      // sits under the boosted SFX + level ambience
         this.el = a;
       }
       return this.el;
