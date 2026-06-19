@@ -169,11 +169,19 @@ const Game = {
     const cs = getComputedStyle(this._probe);
     this.safeTop = parseFloat(cs.paddingTop) || 0;
     this.safeBottom = parseFloat(cs.paddingBottom) || 0;
-    // getBoundingClientRect is the most accurate way to read the rendered canvas
-    // size on iOS PWA — clientHeight can be off when body has position:fixed
-    const rect = this.canvas.getBoundingClientRect();
-    this.W = (rect.width > 10 ? rect.width : null) || this.canvas.clientWidth || window.innerWidth;
-    this.H = (rect.height > 10 ? rect.height : null) || this.canvas.clientHeight || window.innerHeight;
+    // Drive the canvas size explicitly from the visual viewport. On iOS standalone
+    // PWAs, CSS height:100%/inset:0 on a fixed element can resolve SHORT of the true
+    // screen bottom (leaving a blank strip), but window.innerHeight always reports
+    // the full screen with viewport-fit=cover. Forcing the canvas box in px overrides
+    // any short CSS box so it always reaches the real bottom edge.
+    // Use innerWidth/innerHeight (not visualViewport — that shrinks when the
+    // high-score name keyboard opens, which would wrongly squash the canvas).
+    const w = Math.round(window.innerWidth || this.canvas.clientWidth || 420);
+    const h = Math.round(window.innerHeight || this.canvas.clientHeight || 800);
+    this.canvas.style.width = w + 'px';
+    this.canvas.style.height = h + 'px';
+    this.W = w;
+    this.H = h;
     this.canvas.width = Math.round(this.W * this.dpr);
     this.canvas.height = Math.round(this.H * this.dpr);
     this.scale = Math.min(this.W / 420, this.H / 800);

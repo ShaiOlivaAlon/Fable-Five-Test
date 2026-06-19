@@ -148,6 +148,13 @@
 
   window.addEventListener('resize', () => Game.resize());
   window.addEventListener('orientationchange', () => setTimeout(() => Game.resize(), 250));
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', () => Game.resize());
+  // iOS standalone PWAs often report a stale (too-short) innerHeight on first paint,
+  // leaving a blank strip at the bottom until something forces a re-measure. Re-run
+  // resize after load and a few short delays so the canvas snaps to the true height.
+  window.addEventListener('load', () => Game.resize());
+  window.addEventListener('pageshow', () => Game.resize());
+  [120, 400, 900].forEach(ms => setTimeout(() => Game.resize(), ms));
   document.addEventListener('gesturestart', e => e.preventDefault());
 
   const goFullscreen = () => {
