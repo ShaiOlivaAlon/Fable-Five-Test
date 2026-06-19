@@ -157,12 +157,23 @@ const Game = {
 
   resize() {
     this.dpr = Math.min(2.5, window.devicePixelRatio || 1);
-    this.W = window.innerWidth;
-    this.H = window.innerHeight;
+    // read the device safe-area insets (notch / home indicator) via a probe el
+    if (!this._probe) {
+      const d = document.createElement('div');
+      d.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;visibility:hidden;pointer-events:none;'
+        + 'padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);';
+      document.body.appendChild(d);
+      this._probe = d;
+    }
+    const cs = getComputedStyle(this._probe);
+    this.safeTop = parseFloat(cs.paddingTop) || 0;
+    this.safeBottom = parseFloat(cs.paddingBottom) || 0;
+    // size to the REAL on-screen canvas box (fills the standalone screen edge to
+    // edge, including under the notch — no blank bottom strip)
+    this.W = this.canvas.clientWidth || window.innerWidth;
+    this.H = this.canvas.clientHeight || window.innerHeight;
     this.canvas.width = Math.round(this.W * this.dpr);
     this.canvas.height = Math.round(this.H * this.dpr);
-    this.canvas.style.width = this.W + 'px';
-    this.canvas.style.height = this.H + 'px';
     this.scale = Math.min(this.W / 420, this.H / 800);
     this.LW = this.W / this.scale;
     this.LH = this.H / this.scale;
@@ -846,7 +857,7 @@ const Game = {
   // slime boss meter); falls back to the HTML HUD if a sheet isn't loaded
   drawHUD(ctx) {
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    const padTop = 10;
+    const padTop = 10 + (this.safeTop || 0); // clear the notch / status bar
     // ---- score as slime digits, top-left (compact) ----
     if (Assets.ok('slimenums')) {
       const dh = 22;
@@ -891,7 +902,7 @@ const Game = {
       const col = idx % 4, row = (idx / 4) | 0;
       const bandY = row * ch + ch * 0.30, bandH = ch * 0.40; // crop just the bar band
       const bw = Math.min(180, this.W * 0.5), bh = 30;
-      try { ctx.drawImage(img, col * cw, bandY, cw, bandH, (this.W - bw) / 2, 2, bw, bh); } catch (e) { /* not ready */ }
+      try { ctx.drawImage(img, col * cw, bandY, cw, bandH, (this.W - bw) / 2, 2 + (this.safeTop || 0), bw, bh); } catch (e) { /* not ready */ }
     }
   },
 

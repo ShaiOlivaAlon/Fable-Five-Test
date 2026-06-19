@@ -53,7 +53,10 @@ class Player {
     this.x += (d.x / g.scale) * 1.18 + k.x * spd * dt;
     this.y += (d.y / g.scale) * 1.18 + k.y * spd * dt;
     this.x = U.clamp(this.x, 24, g.LW - 24);
-    this.y = U.clamp(this.y, 44, g.LH - 46); // full vertical range — only the screen edges block
+    // keep the ship inside the safe area (clear of notch + home indicator/buttons)
+    const top = 44 + (g.safeTop || 0) / g.scale;
+    const bot = g.LH - 56 - (g.safeBottom || 0) / g.scale;
+    this.y = U.clamp(this.y, top, bot);
     const vx = (this.x - px) / Math.max(dt, 0.001);
     this.tilt = U.lerp(this.tilt, U.clamp(vx / 480, -1, 1), Math.min(1, dt * 10));
 
