@@ -526,25 +526,18 @@ class Boss {
     }
 
     if (this.state === 'dying') {
-      this.dying += dt;
+      this.dying += dt; // dt is already time-scaled by the cinematic
       this.x += Math.sin(this.t * 30) * 60 * dt;
+      // Mini-explosions on the boss during slow-mo — the cinematic handles the big finale
       if (((this.dying * 8) | 0) !== (((this.dying - dt) * 8) | 0)) {
         Particles.explosion(
           this.x + U.rand(-90, 90), this.y + U.rand(-30, 36),
           U.pick(['#ff7ad1', '#8aff3a', '#c9803a']), U.rand(0.7, 1.3),
         );
         Sfx.boom(U.rand(0.5, 1));
-        g.shake(6);
+        g.shake(4);
       }
-      if (this.dying > 2.2 && !this.dead) {
-        this.dead = true;
-        Particles.explosion(this.x, this.y, '#ffffff', 3);
-        Sfx.boom(2);
-        g.shake(26);
-        g.hitstop = 0.18;
-        U.vibrate([80, 50, 120]);
-        g.bossDown();
-      }
+      // bossDown() is now fired by Game._tickBossDeathCinematic once the sequence ends
       return;
     }
 
@@ -658,9 +651,7 @@ class Boss {
       this.state = 'dying';
       this.dying = 0;
       this.beamState = 0;
-      g.ebullets.length = 0;
-      g.hitstop = 0.12;
-      g.shake(10);
+      g.startBossDeathCinematic(this); // hands control to the dramatic cinematic
     }
   }
 

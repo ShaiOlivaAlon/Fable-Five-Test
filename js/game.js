@@ -133,6 +133,7 @@ const Game = {
   shakeAmp: 0, hitstop: 0, beamY: -10,
   lastHp: -1, lastWeapon: '', lastBoost: '§', lastCombo: -1,
   waveSignT: 0, waveSignKey: '',
+  bossDeathSeq: null, timeScale: 1, // dramatic slow-motion on boss defeat
   els: {},
 
   init(canvas) {
@@ -168,10 +169,11 @@ const Game = {
     const cs = getComputedStyle(this._probe);
     this.safeTop = parseFloat(cs.paddingTop) || 0;
     this.safeBottom = parseFloat(cs.paddingBottom) || 0;
-    // size to the REAL on-screen canvas box (fills the standalone screen edge to
-    // edge, including under the notch — no blank bottom strip)
-    this.W = this.canvas.clientWidth || window.innerWidth;
-    this.H = this.canvas.clientHeight || window.innerHeight;
+    // getBoundingClientRect is the most accurate way to read the rendered canvas
+    // size on iOS PWA — clientHeight can be off when body has position:fixed
+    const rect = this.canvas.getBoundingClientRect();
+    this.W = (rect.width > 10 ? rect.width : null) || this.canvas.clientWidth || window.innerWidth;
+    this.H = (rect.height > 10 ? rect.height : null) || this.canvas.clientHeight || window.innerHeight;
     this.canvas.width = Math.round(this.W * this.dpr);
     this.canvas.height = Math.round(this.H * this.dpr);
     this.scale = Math.min(this.W / 420, this.H / 800);
@@ -217,6 +219,8 @@ const Game = {
     this.wasFiring = false;
     this.plasmas.length = 0;
     this.paused = false;
+    this.bossDeathSeq = null;
+    this.timeScale = 1;
     this.els['screen-title'].classList.add('hidden');
     this.els['screen-over'].classList.add('hidden');
     this.els['screen-clear'].classList.add('hidden');
@@ -313,13 +317,17 @@ const Game = {
 
   update(dt) {
     this.time += dt;
-    BG.update(dt);
-    Particles.update(dt);
+    // Boss death cinematic: update sequence timer and compute time-scale for this frame
+    if (this.bossDeathSeq) this._tickBossDeathCinematic(dt);
+    const gameDt = dt * this.timeScale;
+
+    BG.update(gameDt);
+    Particles.update(gameDt);
     Popups.update(dt);
     Comics.update(dt);
     for (let i = this.splats.length - 1; i >= 0; i--) {
       const s = this.splats[i];
-      s.t += dt;
+      s.t += gameDt;
       if (s.t >= s.life) this.splats.splice(i, 1);
     }
     if (this.shakeAmp > 0) this.shakeAmp = Math.max(0, this.shakeAmp - dt * 30);
@@ -327,24 +335,24 @@ const Game = {
     if (this.state !== 'playing') { Input.consume(); return; }
 
     const p = this.player;
-    if (p.alive) p.update(dt);
-    Level.update(dt, this);
+    if (p.alive) p.update(gameDt);
+    Level.update(gameDt, this);
     // ease the background pan toward the level's progress (bottom→top, boss=top)
-    BG.travel += (Level.progress() - BG.travel) * Math.min(1, dt * 0.5);
-    if (this.boss) this.boss.update(dt);
+    BG.travel += (Level.progress() - BG.travel) * Math.min(1, gameDt * 0.5);
+    if (this.boss) this.boss.update(gameDt);
 
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       const e = this.enemies[i];
-      e.update(dt, this);
+      e.update(gameDt, this);
       if (e.dead) this.enemies.splice(i, 1);
     }
 
     // player bullets
     for (let i = this.pbullets.length - 1; i >= 0; i--) {
       const b = this.pbullets[i];
-      if (b.type === 'missile') this.steerMissile(b, dt);
-      b.x += b.vx * dt;
-      b.y += b.vy * dt;
+      if (b.type === 'missile') this.steerMissile(b, gameDt);
+      b.x += b.vx * gameDt;
+      b.y += b.vy * gameDt;
       if (b.y < -30 || b.x < -30 || b.x > this.LW + 30 || b.y > this.LH + 30) {
         this.pbullets.splice(i, 1);
         continue;
@@ -367,13 +375,13 @@ const Game = {
       if (b.dead) this.pbullets.splice(i, 1);
     }
 
-    if (p.alive && p.weapon === 'beam' && p.firing) this.beamUpdate(dt); else this.beamY = -10;
+    if (p.alive && p.weapon === 'beam' && p.firing) this.beamUpdate(gameDt); else this.beamY = -10;
 
     // enemy bullets
     for (let i = this.ebullets.length - 1; i >= 0; i--) {
       const b = this.ebullets[i];
-      b.x += b.vx * dt;
-      b.y += b.vy * dt;
+      b.x += b.vx * gameDt;
+      b.y += b.vy * gameDt;
       if (b.y > this.LH + 24 || b.y < -24 || b.x < -24 || b.x > this.LW + 24) {
         this.ebullets.splice(i, 1);
         continue;
@@ -384,8 +392,8 @@ const Game = {
       }
     }
 
-    // enemy bodies vs player
-    if (p.alive) {
+    // enemy bodies vs player (skip during boss death cinematic — the fight is over)
+    if (p.alive && !this.bossDeathSeq) {
       for (const e of this.enemies) {
         if (e.delay > 0 || e.dead) continue;
         const rr = e.r + 13;
@@ -404,7 +412,7 @@ const Game = {
     // powerups
     for (let i = this.powerups.length - 1; i >= 0; i--) {
       const u = this.powerups[i];
-      u.update(dt, this);
+      u.update(gameDt, this);
       if (!u.dead && p.alive && U.dist2(u.x, u.y, p.x, p.y) < 30 * 30) {
         this.collect(u);
         u.dead = true;
@@ -416,25 +424,31 @@ const Game = {
       this.comboT -= dt;
       if (this.comboT <= 0) this.combo = 0;
     }
-    // hold to fire + charge; release fires the plasma (single source of truth)
-    const firing = Input.firing();
-    if (this.wasFiring && !firing) this.releaseCharge();
-    this.charging = firing;
-    this.wasFiring = firing;
-    this.charge = Math.min(1, this.charge + dt * (this.charging ? 0.17 : 0)); // slow, deliberate — full takes ~6s
+    // hold to fire + charge — locked out during boss death cinematic
+    if (!this.bossDeathSeq) {
+      const firing = Input.firing();
+      if (this.wasFiring && !firing) this.releaseCharge();
+      this.charging = firing;
+      this.wasFiring = firing;
+    } else {
+      Input.consume();
+      this.charging = false;
+      this.wasFiring = false;
+    }
+    this.charge = Math.min(1, this.charge + gameDt * (this.charging ? 0.17 : 0)); // slow, deliberate — full takes ~6s
     // plasma orbs: fly up, melt every enemy inside their radius (once each)
     for (let i = this.plasmas.length - 1; i >= 0; i--) {
       const pl = this.plasmas[i];
-      pl.y += pl.vy * dt;
-      pl.life -= dt;
-      pl.r = Math.min(pl.rMax, pl.r + dt * 60); // grows as it climbs
+      pl.y += pl.vy * gameDt;
+      pl.life -= gameDt;
+      pl.r = Math.min(pl.rMax, pl.r + gameDt * 60); // grows as it climbs
       for (const e of this.enemies) {
         if (e.delay > 0 || e.dead || pl.hit.indexOf(e) >= 0) continue;
         const rr = pl.r + e.r;
         if (U.dist2(pl.x, pl.y, e.x, e.y) < rr * rr) { pl.hit.push(e); e.damage(pl.dmg, this); }
       }
       if (this.boss && this.boss.hitTest(pl.x, pl.y, pl.r) && (pl.bossT || 0) <= 0) { pl.bossT = 0.12; this.boss.damage(pl.dmg * 0.5, this); }
-      if (pl.bossT) pl.bossT -= dt;
+      if (pl.bossT) pl.bossT -= gameDt;
       Particles.spawn({ x: pl.x + U.rand(-pl.r * 0.4, pl.r * 0.4), y: pl.y + U.rand(-8, 12), vx: U.rand(-40, 40), vy: U.rand(20, 80), color: '#b7ff2e', size: 3.5, life: 0.35, glow: 12 });
       if (pl.life <= 0 || pl.y < -pl.r) {
         Particles.explosion(pl.x, pl.y, '#b7ff2e', 1.8); // satisfying detonation
@@ -446,6 +460,96 @@ const Game = {
     const mc = Sfx.music.els && Sfx.music.els[Sfx.music.cur];
     if (mc && mc.paused && Sfx.music.currentSrc && !Sfx.music.fade) mc.play().catch(() => {});
     this.updateHud();
+  },
+
+  // Called when the boss transitions to 'dying' — kicks off the dramatic cinematic
+  startBossDeathCinematic(boss) {
+    if (this.bossDeathSeq) return;
+    this.bossDeathSeq = { t: 0, boss, finalFired: false, done: false };
+    this.ebullets.length = 0;
+    this._preloadNextWorld();
+  },
+
+  _preloadNextWorld() {
+    const nextIdx = Level.worldIdx + 1;
+    if (nextIdx >= WORLDS.length) return;
+    const w = WORLDS[nextIdx];
+    if (w.fallback) { const im = new Image(); im.src = w.fallback; }
+    if (w.video) {
+      let v = BG._preloadVid;
+      if (!v || v.src !== w.video) {
+        v = document.createElement('video');
+        v.muted = true; v.preload = 'auto'; v.playsInline = true;
+        v.setAttribute('playsinline', '');
+        v.style.cssText = 'position:absolute;top:-9999px;width:1px;height:1px;pointer-events:none;';
+        document.body.appendChild(v);
+        BG._preloadVid = v;
+      }
+      v.src = w.video; v.load();
+    }
+  },
+
+  // Advances the boss-death cinematic each frame; mutates this.timeScale
+  _tickBossDeathCinematic(realDt) {
+    const seq = this.bossDeathSeq;
+    if (!seq) return;
+    seq.t += realDt;
+    const t = seq.t;
+
+    // Time scale curve: instant slow-down on kill, hold slow-mo, ramp back up before the final bang
+    if (t < 0.2) {
+      this.timeScale = 1.0;
+    } else if (t < 0.7) {
+      this.timeScale = U.lerp(1.0, 0.08, (t - 0.2) / 0.5);
+    } else if (t < 2.5) {
+      this.timeScale = 0.08;
+    } else if (t < 3.1) {
+      this.timeScale = U.lerp(0.08, 1.0, (t - 2.5) / 0.6);
+    } else {
+      this.timeScale = 1.0;
+    }
+
+    const bx = seq.boss ? seq.boss.x : this.LW / 2;
+    const by = seq.boss ? seq.boss.y : this.LH / 3;
+    const COLS = ['#ff7ad1', '#8aff3a', '#c9803a', '#00ffff', '#fff', '#ffd84d', '#ff4444'];
+
+    // Cascade explosions — density increases over time
+    const interval = t < 1.5 ? 0.13 : (t < 2.5 ? 0.09 : 0.045);
+    if (t > 0 && Math.floor(t / interval) > Math.floor((t - realDt) / interval)) {
+      Particles.explosion(bx + U.rand(-140, 140), by + U.rand(-80, 90), U.pick(COLS), U.rand(1.3, 2.3));
+      if (t > 0.7) Particles.explosion(bx + U.rand(-110, 110), by + U.rand(-60, 70), U.pick(COLS), U.rand(0.9, 1.7));
+      if (Math.random() < 0.55) Sfx.boom(U.rand(0.5, 1.4));
+      if (Math.random() < 0.3) this.shake((U.rand(4, 10)) | 0);
+    }
+
+    // Final mega-death blasts at t≈2.55 (just before time ramps back up)
+    if (t >= 2.55 && !seq.finalFired) {
+      seq.finalFired = true;
+      const fire = (delay, sc) => setTimeout(() => {
+        if (this.state !== 'playing') return;
+        const ox = (U.rand(-90, 90)) | 0, oy = (U.rand(-60, 70)) | 0;
+        Particles.explosion(bx + ox, by + oy, '#ffffff', sc);
+        Particles.explosion(bx + ox, by + oy, U.pick(COLS), sc * 0.75);
+        this.shake((20 + sc * 2.5) | 0);
+        this.flash('rgba(255,255,255,' + Math.min(0.88, sc * 0.17).toFixed(2) + ')');
+        Sfx.boom(Math.min(3, sc * 0.72));
+        U.vibrate([80, 40, 100]);
+      }, delay);
+      fire(0,   3.8);
+      fire(140, 3.2);
+      fire(290, 4.2);
+      fire(450, 3.0);
+      fire(610, 4.8);
+    }
+
+    // Sequence complete: fire bossDown and restore time scale
+    if (t >= 3.7 && !seq.done) {
+      seq.done = true;
+      this.bossDeathSeq = null;
+      this.timeScale = 1.0;
+      if (seq.boss) seq.boss.dead = true;
+      this.bossDown();
+    }
   },
 
   steerMissile(b, dt) {
